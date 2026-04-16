@@ -1,0 +1,168 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { PUBLIC_WP_URL } from '../../lib/woocommerce';
+
+export const prerender = false;
+
+const page = Number(Astro.url.searchParams.get('pagina') || 1);
+const perPage = 12;
+const categoryId = Astro.url.searchParams.get('categoria') || '';
+
+let postsUrl = `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}&_embed&status=publish`;
+if (categoryId) postsUrl += `&categories=${categoryId}`;
+
+let posts: any[] = [];
+let totalPages = 1;
+let categories: any[] = [];
+
+try {
+  const [postsRes, categoriesRes] = await Promise.all([
+    fetch(postsUrl),
+    fetch(`${PUBLIC_WP_URL}/wp-json/wp/v2/categories?per_page=100&hide_empty=true`),
+  ]);
+  if (postsRes.ok) {
+    posts = await postsRes.json();
+    totalPages = Number(postsRes.headers.get('X-WP-TotalPages') || 1);
+  }
+  if (categoriesRes.ok) {
+    categories = await categoriesRes.json();
+  }
+} catch (e) {
+  console.error('Error fetching blog posts:', e);
+}
+
+const seoData = {
+  title: 'Blog | Winston & Harry',
+  description: 'Artículos de moda, tendencias y el mundo del cuero artesanal colombiano.',
+  canonical: `https://winstonandharrystore.com/blog`,
+};
+---
+
+<Layout seoData={seoData} title={seoData.title} description={seoData.description}>
+  <Header />
+
+  <section class="blog-hero">
+    <div class="blog-hero__overlay"></div>
+    <div class="blog-hero__content">
+      <h1>Blog</h1>
+      <p>Moda, tendencias y el mundo del cuero artesanal</p>
+    </div>
+  </section>
+
+  {categories.filter((c: any) => c.id !== 1).length > 0 && (
+    <section class="blog-filters">
+      <div class="container">
+        <div class="blog-filters__inner">
+          <label for="cat-filter" class="blog-filters__label">Categoría</label>
+          <div class="blog-filters__select-wrap">
+            <select id="cat-filter" class="blog-filters__select" onchange="window.location.href=this.value">
+              <option value="/blog" selected={!categoryId}>Todas las categorías</option>
+              {categories.filter((c: any) => c.id !== 1).map((cat: any) => (
+                <option value={`/blog?categoria=${cat.id}`} selected={categoryId === String(cat.id)}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <span class="blog-filters__arrow">▾</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="blog-grid-section">
+    <div class="container">
+      {posts.length === 0 ? (
+        <div class="blog-empty"><p>No hay publicaciones disponibles.</p></div>
+      ) : (
+        <div class="blog-grid">
+          {posts.map((post: any) => {
+            const img = post._embedded?.['wp:featuredmedia']?.[0]?.source_url || '';
+            const cat = post._embedded?.['wp:term']?.[0]?.[0]?.name || '';
+            const excerpt = post.excerpt?.rendered?.replace(/<[^>]*>/g, '').slice(0, 120) + '...';
+            const date = new Date(post.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+            const reelUrl = post.acf?.reel_url || '';
+            return (
+              <article class="blog-card reveal-on-scroll">
+                <a href={`/blog/${post.slug}`} class="blog-card__image-wrap">
+                  {img && <img src={img} alt={post.title.rendered} loading="lazy" />}
+                  {cat && <span class="blog-card__cat">{cat}</span>}
+                  {reelUrl && <span class="blog-card__reel-badge">▶ Reel</span>}
+                </a>
+                <div class="blog-card__body">
+                  <time class="blog-card__date">{date}</time>
+                  <h2 class="blog-card__title">
+                    <a href={`/blog/${post.slug}`} set:html={post.title.rendered} />
+                  </h2>
+                  <p class="blog-card__excerpt">{excerpt}</p>
+                  <div class="blog-card__actions">
+                    <a href={`/blog/${post.slug}`} class="btn blog-card__cta">Leer más</a>
+                    {reelUrl && (
+                      <a href={reelUrl} target="_blank" rel="noopener noreferrer" class="blog-card__reel-btn">▶ Ver Reel</a>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+      {totalPages > 1 && (
+        <nav class="blog-pagination" aria-label="Paginación del blog">
+          {page > 1 && (
+            <a href={`/blog?pagina=${page - 1}${categoryId ? `&categoria=${categoryId}` : ''}`} class="blog-pag-btn">← Anterior</a>
+          )}
+          <span class="blog-pag-info">Página {page} de {totalPages}</span>
+          {page < totalPages && (
+            <a href={`/blog?pagina=${page + 1}${categoryId ? `&categoria=${categoryId}` : ''}`} class="blog-pag-btn">Siguiente →</a>
+          )}
+        </nav>
+      )}
+    </div>
+  </section>
+
+  <Footer />
+</Layout>
+
+<style>
+  .blog-hero { position: relative; height: 420px; background: url('/blog-hero.jpg') center / cover no-repeat, #155338; display: flex; align-items: center; justify-content: center; text-align: center; }
+  .blog-hero__overlay { position: absolute; inset: 0; background: rgba(21,83,56,0.68); }
+  .blog-hero__content { position: relative; z-index: 1; color: #efefef; }
+  .blog-hero__content h1 { font-size: clamp(2.5rem,6vw,4.5rem); color: #efefef; letter-spacing: 8px; margin-bottom: 0.75rem; }
+  .blog-hero__content p { font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase; color: #b1915f; }
+  .blog-filters { padding: 2rem 0; border-bottom: 1px solid rgba(18,18,18,0.08); background: #fff; }
+  .blog-filters__inner { display: flex; align-items: center; gap: 1rem; justify-content: center; }
+  .blog-filters__label { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: #888; }
+  .blog-filters__select-wrap { position: relative; display: inline-flex; align-items: center; }
+  .blog-filters__select { appearance: none; -webkit-appearance: none; border: 1px solid #155338; color: #155338; background: #fff; padding: 0.5rem 2.5rem 0.5rem 1.2rem; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; font-family: inherit; cursor: pointer; outline: none; transition: background 0.2s,color 0.2s; min-width: 220px; }
+  .blog-filters__select:focus, .blog-filters__select:hover { background: #155338; color: #efefef; }
+  .blog-filters__arrow { position: absolute; right: 0.9rem; pointer-events: none; font-size: 0.9rem; color: #155338; }
+  .blog-grid-section { padding: 5rem 0; }
+  .blog-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2.5rem; }
+  .blog-card { display: flex; flex-direction: column; background: #fff; border: 1px solid rgba(18,18,18,0.08); transition: box-shadow 0.3s ease; }
+  .blog-card:hover { box-shadow: 0 8px 32px rgba(21,83,56,0.12); }
+  .blog-card__image-wrap { position: relative; overflow: hidden; aspect-ratio: 3/4; display: block; background: #f0ece6; }
+  .blog-card__image-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+  .blog-card:hover .blog-card__image-wrap img { transform: scale(1.04); }
+  .blog-card__cat { position: absolute; top: 1rem; left: 1rem; background: #b1915f; color: #fff; font-size: 0.65rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 0.3rem 0.75rem; }
+  .blog-card__reel-badge { position: absolute; bottom: 1rem; right: 1rem; background: rgba(18,18,18,0.75); color: #fff; font-size: 0.62rem; letter-spacing: 1px; padding: 0.25rem 0.6rem; text-transform: uppercase; }
+  .blog-card__body { padding: 1.5rem; display: flex; flex-direction: column; flex: 1; gap: 0.5rem; }
+  .blog-card__date { font-size: 0.7rem; color: #b1915f; letter-spacing: 1px; text-transform: uppercase; }
+  .blog-card__title { font-size: 1rem; color: #155338; letter-spacing: 1px; line-height: 1.4; margin: 0; }
+  .blog-card__title a { color: inherit; transition: color 0.2s; }
+  .blog-card__title a:hover { color: #b1915f; }
+  .blog-card__excerpt { font-size: 0.8rem; color: #555; flex: 1; line-height: 1.7; }
+  .blog-card__actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .blog-card__cta { font-size: 0.72rem; padding: 0.55rem 1.4rem; }
+  .blog-card__reel-btn { font-size: 0.68rem; letter-spacing: 1px; text-transform: uppercase; color: #b1915f; border: 1px solid #b1915f; padding: 0.5rem 1rem; transition: all 0.3s ease; }
+  .blog-card__reel-btn:hover { background: #b1915f; color: #fff; }
+  .blog-pagination { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin-top: 4rem; }
+  .blog-pag-btn { border: 1px solid #155338; color: #155338; padding: 0.5rem 1.5rem; font-size: 0.72rem; letter-spacing: 1px; text-transform: uppercase; transition: all 0.3s ease; }
+  .blog-pag-btn:hover { background: #155338; color: #efefef; }
+  .blog-pag-info { font-size: 0.72rem; color: #888; letter-spacing: 1px; }
+  .blog-empty { text-align: center; padding: 5rem 0; color: #888; font-size: 0.9rem; }
+  @media (max-width: 1024px) { .blog-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 600px) { .blog-hero { height: 300px; } .blog-grid { grid-template-columns: repeat(2,1fr); gap: 1rem; } .blog-grid-section { padding: 3rem 0; } .blog-filters__select { min-width: 180px; } }
+</style>
