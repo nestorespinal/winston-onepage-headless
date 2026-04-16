@@ -7,48 +7,37 @@ import ProductGrid from "../components/ProductGrid";
 import About from "../components/About.astro";
 import Footer from "../components/Footer.astro";
 import FeaturesBanner from "../components/FeaturesBanner.astro";
-import LookOfTheWeek from "../components/LookOfTheWeek.astro";
+import InstagramReels from "../components/InstagramReels";
 import CategoryGrid from "../components/CategoryGrid.astro";
 export const prerender = true;
 ---
-
 <Layout title="Winston & Harry | Calzado Artesanal de Lujo">
-	<Header />
-
-	<main>
-		<Hero />
-
-		<div class="content-wrapper">
-			<FeaturesBanner />
-			<CategoryGrid />
-			<ProductGrid client:load />
-			<ScrollRevealBanner
-				imageUrl="/images/banner-look-completo.webp"
-				title="Estilo que se construye con intención"
-				description="Cada prenda está pensada para integrarse a tu forma de vestir y a tu ritmo. Descubre ropa que suma, combina y se adapta a tu día. chaquetas, camisas y suéteres."
-				pretitle="Winston & Harry"
-			/>
-			<LookOfTheWeek />
-			<About />
-		</div>
-	</main>
-
-	<Footer />
+  <Header />
+  <main>
+    <Hero />
+    <div class="content-wrapper">
+      <FeaturesBanner />
+      <CategoryGrid />
+      <ProductGrid client:load />
+      <ScrollRevealBanner imageUrl="/images/banner-look-completo.webp" title="Estilo que se construye con intención" description="Cada prenda está pensada para integrarse a tu forma de vestir y a tu ritmo. Descubre ropa que suma, combina y se adapta a tu día. chaquetas, camisas y suéteres." pretitle="Winston & Harry" />
+      <InstagramReels client:load />
+      <About />
+    </div>
+  </main>
+  <Footer />
 </Layout>
 
 <style is:global>
-	/* Smoothie scroll */
-	html {
-		scroll-behavior: smooth;
-	}
-
-	main {
-		/* Eliminamos overflow-x para permitir que position: sticky funcione en los componentes hijos */
-	}
-
-	.content-wrapper {
-		position: relative;
-		z-index: 10;
-		background-color: var(--color-white);
-	}
+  /* Smoothie scroll */
+  html {
+    scroll-behavior: smooth;
+  }
+  main {
+    /* Eliminamos overflow-x para permitir que position: sticky funcione en los componentes hijos */
+  }
+  .content-wrapper {
+    position: relative;
+    z-index: 10;
+    background-color: var(--color-white);
+  }
 </style>
