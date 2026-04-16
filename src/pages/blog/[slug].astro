@@ -1,0 +1,204 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { PUBLIC_WP_URL } from '../../lib/woocommerce';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+
+let post: any = null;
+let relatedPosts: any[] = [];
+
+try {
+  const postRes = await fetch(
+    `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?slug=${slug}&_embed&status=publish`
+  );
+  if (postRes.ok) {
+    const data = await postRes.json();
+    post = data[0] || null;
+  }
+  if (!post) return Astro.redirect('/blog');
+
+  const catId = post._embedded?.['wp:term']?.[0]?.[0]?.id;
+  if (catId) {
+    const relRes = await fetch(
+      `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?categories=${catId}&per_page=3&_embed&exclude=${post.id}&status=publish`
+    );
+    if (relRes.ok) relatedPosts = await relRes.json();
+  }
+  if (relatedPosts.length === 0) {
+    const recRes = await fetch(
+      `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?per_page=3&_embed&exclude=${post.id}&status=publish`
+    );
+    if (recRes.ok) relatedPosts = await recRes.json();
+  }
+} catch (e) {
+  console.error('Error fetching blog post:', e);
+  return Astro.redirect('/blog');
+}
+
+const img = post._embedded?.['wp:featuredmedia']?.[0]?.source_url || '';
+const categories: any[] = post._embedded?.['wp:term']?.[0] || [];
+const tags: any[] = post._embedded?.['wp:term']?.[1] || [];
+const date = new Date(post.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+const title = post.title.rendered;
+const content = post.content.rendered;
+const excerpt = post.excerpt?.rendered?.replace(/<[^>]*>/g, '').slice(0, 160) || '';
+const reelUrl = post.acf?.reel_url || '';
+const postUrl = `https://winstonandharrystore.com/blog/${slug}`;
+
+const seoData = {
+  title: `${post.title.rendered.replace(/<[^>]*>/g, '')} | Blog Winston & Harry`,
+  description: excerpt,
+  image: img || undefined,
+  canonical: postUrl,
+};
+---
+
+<Layout seoData={seoData} title={seoData.title} description={seoData.description}>
+  <Header />
+
+  <section class="post-header">
+    <div class="container post-header__inner">
+      <nav class="post-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Inicio</a><span>/</span><a href="/blog">Blog</a>
+        {categories[0] && (<><span>/</span><span>{categories[0].name}</span></>)}
+      </nav>
+      <div class="post-meta">
+        <time datetime={post.date}>{date}</time>
+        {categories.length > 0 && (
+          <div class="post-meta__cats">
+            {categories.map((c: any) => (<a href={`/blog?categoria=${c.id}`}>{c.name}</a>))}
+          </div>
+        )}
+      </div>
+      <h1 set:html={title} />
+      {reelUrl && (
+        <a href={reelUrl} target="_blank" rel="noopener noreferrer" class="btn-reel">▶ Ver en Instagram</a>
+      )}
+    </div>
+  </section>
+
+  {img && (
+    <div class="post-portrait-outer">
+      <figure class="post-portrait">
+        <img src={img} alt={title.replace(/<[^>]*>/g, '')} />
+      </figure>
+    </div>
+  )}
+
+  <article class="post-content-section">
+    <div class="container post-layout">
+      <div class="post-body">
+        <div class="post-body__content" set:html={content} />
+        {tags.length > 0 && (
+          <div class="post-tags">
+            <span>Tags:</span>
+            {tags.map((t: any) => (<a href={`/blog?tag=${t.id}`} class="post-tag">{t.name}</a>))}
+          </div>
+        )}
+        <div class="post-share">
+          <span>Compartir:</span>
+          <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`} target="_blank" rel="noopener noreferrer">Facebook</a>
+          <a href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(postUrl)}&text=${encodeURIComponent(title.replace(/<[^>]*>/g, ''))}`} target="_blank" rel="noopener noreferrer">X / Twitter</a>
+          <a href={`https://wa.me/?text=${encodeURIComponent(title.replace(/<[^>]*>/g, '') + ' ' + postUrl)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        </div>
+        <div class="post-back">
+          <a href="/blog" class="btn-outline">← Volver al Blog</a>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  {relatedPosts.length > 0 && (
+    <section class="related-posts">
+      <div class="container">
+        <h2 class="related-posts__title">También te puede interesar</h2>
+        <div class="related-grid">
+          {relatedPosts.map((rp: any) => {
+            const rpImg = rp._embedded?.['wp:featuredmedia']?.[0]?.source_url || '';
+            const rpCat = rp._embedded?.['wp:term']?.[0]?.[0]?.name || '';
+            const rpDate = new Date(rp.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+            const rpExcerpt = rp.excerpt?.rendered?.replace(/<[^>]*>/g, '').slice(0, 100) + '...';
+            return (
+              <article class="blog-card reveal-on-scroll">
+                <a href={`/blog/${rp.slug}`} class="blog-card__image-wrap">
+                  {rpImg && <img src={rpImg} alt={rp.title.rendered.replace(/<[^>]*>/g, '')} loading="lazy" />}
+                  {rpCat && <span class="blog-card__cat">{rpCat}</span>}
+                </a>
+                <div class="blog-card__body">
+                  <time class="blog-card__date">{rpDate}</time>
+                  <h3 class="blog-card__title"><a href={`/blog/${rp.slug}`} set:html={rp.title.rendered} /></h3>
+                  <p class="blog-card__excerpt">{rpExcerpt}</p>
+                  <a href={`/blog/${rp.slug}`} class="btn blog-card__cta">Leer más</a>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <Footer />
+</Layout>
+
+<style>
+  .post-header { background: #155338; padding: 3rem 0 2.5rem; color: #efefef; }
+  .post-header__inner { max-width: 860px; margin: 0 auto; }
+  .post-header h1 { font-size: clamp(1.6rem,3.5vw,2.8rem); color: #efefef; letter-spacing: 2px; line-height: 1.25; margin: 1rem 0 1.5rem; text-transform: uppercase; }
+  .post-breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(239,239,239,0.55); margin-bottom: 1.25rem; }
+  .post-breadcrumb a { color: rgba(239,239,239,0.55); transition: color 0.2s; }
+  .post-breadcrumb a:hover { color: #b1915f; }
+  .post-meta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .post-meta time { color: rgba(239,239,239,0.55); }
+  .post-meta__cats { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .post-meta__cats a { color: #b1915f; border: 1px solid #b1915f; padding: 0.2rem 0.65rem; font-size: 0.65rem; transition: 0.2s; }
+  .post-meta__cats a:hover { background: #b1915f; color: #fff; }
+  .btn-reel { display: inline-block; background: #b1915f; color: #fff; padding: 0.6rem 1.5rem; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; transition: background 0.2s; margin-top: 0.25rem; }
+  .btn-reel:hover { background: #9a7a4e; text-decoration: none; color: #fff; }
+  .post-portrait-outer { display: flex; justify-content: center; padding: 3.5rem 1rem 2rem; background: #f9f9f7; }
+  .post-portrait { width: 100%; max-width: 380px; aspect-ratio: 3/4; overflow: hidden; margin: 0; }
+  .post-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .post-content-section { padding: 4rem 0 5rem; }
+  .post-layout { max-width: 860px; margin: 0 auto; }
+  .post-body__content { font-size: 0.88rem; line-height: 1.95; color: #2a2a2a; }
+  .post-body__content :global(h2) { color: #155338; font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase; margin: 2.5rem 0 1rem; }
+  .post-body__content :global(h3) { color: #155338; font-size: 1.1rem; letter-spacing: 1.5px; margin: 2rem 0 0.75rem; }
+  .post-body__content :global(p) { margin-bottom: 1.5rem; }
+  .post-body__content :global(img) { max-width: 100%; height: auto; margin: 1.5rem 0; display: block; }
+  .post-body__content :global(ul), .post-body__content :global(ol) { padding-left: 1.5rem; margin-bottom: 1.5rem; }
+  .post-body__content :global(li) { margin-bottom: 0.5rem; }
+  .post-body__content :global(blockquote) { border-left: 3px solid #b1915f; padding: 1rem 1.5rem; margin: 2rem 0; background: rgba(177,145,95,0.06); font-style: italic; color: #555; }
+  .post-body__content :global(a) { color: #155338; text-decoration: underline; text-underline-offset: 3px; }
+  .post-body__content :global(a:hover) { color: #b1915f; }
+  .post-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(18,18,18,0.1); font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; color: #888; }
+  .post-tag { border: 1px solid rgba(18,18,18,0.15); padding: 0.25rem 0.75rem; color: #555; font-size: 0.68rem; transition: 0.2s; }
+  .post-tag:hover { border-color: #155338; color: #155338; }
+  .post-share { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; color: #888; }
+  .post-share a { padding: 0.4rem 1rem; border: 1px solid #155338; color: #155338; font-size: 0.68rem; letter-spacing: 1px; transition: all 0.3s ease; }
+  .post-share a:hover { background: #155338; color: #efefef; text-decoration: none; }
+  .post-back { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(18,18,18,0.08); }
+  .btn-outline { display: inline-block; border: 1px solid #155338; color: #155338; padding: 0.6rem 1.5rem; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; transition: all 0.3s ease; }
+  .btn-outline:hover { background: #155338; color: #efefef; }
+  .related-posts { padding: 5rem 0; background: #f9f9f7; }
+  .related-posts__title { text-align: center; margin-bottom: 3rem; font-size: 1.1rem; color: #155338; letter-spacing: 5px; text-transform: uppercase; }
+  .related-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2rem; }
+  .blog-card { display: flex; flex-direction: column; background: #fff; border: 1px solid rgba(18,18,18,0.08); transition: box-shadow 0.3s ease; }
+  .blog-card:hover { box-shadow: 0 8px 32px rgba(21,83,56,0.12); }
+  .blog-card__image-wrap { position: relative; overflow: hidden; aspect-ratio: 3/4; display: block; background: #f0ece6; }
+  .blog-card__image-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+  .blog-card:hover .blog-card__image-wrap img { transform: scale(1.04); }
+  .blog-card__cat { position: absolute; top: 1rem; left: 1rem; background: #b1915f; color: #fff; font-size: 0.65rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 0.3rem 0.75rem; }
+  .blog-card__body { padding: 1.25rem; display: flex; flex-direction: column; flex: 1; gap: 0.4rem; }
+  .blog-card__date { font-size: 0.68rem; color: #b1915f; letter-spacing: 1px; text-transform: uppercase; }
+  .blog-card__title { font-size: 0.95rem; color: #155338; letter-spacing: 1px; margin: 0; line-height: 1.4; }
+  .blog-card__title a { color: inherit; transition: color 0.2s; }
+  .blog-card__title a:hover { color: #b1915f; }
+  .blog-card__excerpt { font-size: 0.78rem; color: #555; flex: 1; line-height: 1.6; }
+  .blog-card__cta { align-self: flex-start; margin-top: 0.5rem; font-size: 0.7rem; padding: 0.5rem 1.2rem; }
+  @media (max-width: 900px) { .related-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 600px) { .post-header { padding: 2rem 0; } .post-portrait-outer { padding: 2rem 1rem 1rem; } .post-portrait { max-width: 280px; } .post-content-section { padding: 3rem 0; } .related-posts { padding: 3rem 0; } .related-grid { grid-template-columns: 1fr; } }
+</style>
