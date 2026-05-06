@@ -1,5 +1,5 @@
 ---
-import { PUBLIC_WP_URL } from "../lib/woocommerce";
+import { PUBLIC_WP_URL, wcFetch } from "../lib/woocommerce";
 
 const perPage = 4;
 const postsUrl = `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?per_page=${perPage}&status=publish&_embed`;
