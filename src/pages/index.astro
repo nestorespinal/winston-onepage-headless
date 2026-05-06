@@ -12,7 +12,7 @@ import CategoryGrid from "../components/CategoryGrid.astro";
 import BlogHome from "../components/BlogHome.astro";
 import { getHomeSEO, getProductsByCategory } from "../lib/woocommerce";
 
-export const prerender = true;
+export const prerender = false;
 
 const homeSeo = await getHomeSEO();
 const initialProducts = await getProductsByCategory(
@@ -42,6 +42,7 @@ const initialProducts = await getProductsByCategory(
 			/>
 			<LookOfTheWeek />
 			<About />
+			<BlogHome />
 		</div>
 	</main>
 
