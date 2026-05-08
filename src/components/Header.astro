@@ -46,7 +46,7 @@ function flattenCategoryUrl(url: string) {
     if (clean.includes("/product-category/")) {
         const segments = clean.split("/").filter(Boolean);
         const lastSegment = segments[segments.length - 1];
-        return `/categoria/${lastSegment}/`;
+        return `/categoria/${lastSegment}`;
     }
 
     // Asegurar que no quede "vacio" o "//"
@@ -54,6 +54,8 @@ function flattenCategoryUrl(url: string) {
     
     // Normalizar a barra inicial si no la tiene
     if (!clean.startsWith("/")) clean = "/" + clean;
+
+    clean = clean.replace(/\/$/, '');
     
     return clean;
 }
