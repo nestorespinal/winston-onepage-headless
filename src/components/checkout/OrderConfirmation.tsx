@@ -23,12 +23,12 @@ export default function OrderConfirmation() {
             if (!alreadyTracked && typeof window !== 'undefined') {
                 const orderTotal = parseFloat(String(parsedOrder.total || '0')) || 0;
                 const orderItems = parsedOrder.items || [];
-                if (typeof (window as any).gtag === 'function') {
-                    (window as any).gtag('event', 'purchase', {
-                        transaction_id: String(parsedOrder.id), currency: 'COP', value: orderTotal,
-                        items: orderItems.map((item: any) => ({ item_id: String(item.id), item_name: item.name, price: item.price, quantity: item.quantity }))
-                    });
-                }
+                (window as any).dataLayer = (window as any).dataLayer || [];
+                (window as any).dataLayer.push({
+                    event: 'purchase',
+                    transaction_id: String(parsedOrder.id), currency: 'COP', value: orderTotal,
+                    items: orderItems.map((item: any) => ({ item_id: String(item.id), item_name: item.name, price: item.price, quantity: item.quantity }))
+                });
                 if (typeof (window as any).fbq === 'function') {
                     (window as any).fbq('track', 'Purchase', {
                         content_ids: orderItems.map((item: any) => String(item.id)), content_type: 'product', value: orderTotal, currency: 'COP'
