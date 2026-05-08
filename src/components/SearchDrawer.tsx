@@ -33,7 +33,7 @@ const SearchDrawer: React.FC = () => {
             } else {
                 setResults([]);
             }
-        }, 400);
+        }, 600);
 
         return () => clearTimeout(timer);
     }, [query]);

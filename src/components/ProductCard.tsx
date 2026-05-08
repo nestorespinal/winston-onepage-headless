@@ -154,11 +154,11 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             const vSize = v.attributes.find((a: any) => {
                 const name = String(a.name || '').toLowerCase();
                 const id = String(a.id || '').toLowerCase();
-                return name.includes('talla') || id.includes('talla') || 
-                       name.includes('size') || id.includes('size') ||
-                       name.includes('tamano') || name.includes('tamaño') ||
-                       name.includes('numero') || name.includes('nmero') ||
-                       name.includes('selecciona-una-talla');
+                return name.includes('talla') || id.includes('talla') ||
+                    name.includes('size') || id.includes('size') ||
+                    name.includes('tamano') || name.includes('tamaño') ||
+                    name.includes('numero') || name.includes('nmero') ||
+                    name.includes('selecciona-una-talla');
             });
 
             const vColorRaw = vColor?.value || vColor?.option || '';
@@ -246,15 +246,15 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             const colorSlugNormalized = normalizeAttr(active);
             // Primero match exacto
             let matchedKey = Object.keys(currentProduct.variation_images_map).find(key => normalizeAttr(key) === colorSlugNormalized);
-            
+
             // Fallback match parcial si no hay exacto
             if (!matchedKey) {
                 matchedKey = Object.keys(currentProduct.variation_images_map).find(
                     key => {
                         const k = normalizeAttr(key);
                         return (colorSlugNormalized === 'vinotinto' && k === 'vino') ||
-                               (colorSlugNormalized === 'vino' && k === 'vinotinto') ||
-                               (colorSlugNormalized.length > 3 && k.includes(colorSlugNormalized));
+                            (colorSlugNormalized === 'vino' && k === 'vinotinto') ||
+                            (colorSlugNormalized.length > 3 && k.includes(colorSlugNormalized));
                     }
                 );
             }
@@ -280,18 +280,18 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             const src = (img.src || "").toLowerCase();
             const alt = (img.alt || "").toLowerCase();
             const name = (img.name || "").toLowerCase();
-            
-            const selectedMatches = isMatch(src, colorSlug) || isMatch(alt, colorSlug) || 
-                                    (colorName && (isMatch(src, colorName) || isMatch(alt, colorName))) ||
-                                    colorSynonyms.some(s => isMatch(src, s) || isMatch(alt, s));
+
+            const selectedMatches = isMatch(src, colorSlug) || isMatch(alt, colorSlug) ||
+                (colorName && (isMatch(src, colorName) || isMatch(alt, colorName))) ||
+                colorSynonyms.some(s => isMatch(src, s) || isMatch(alt, s));
 
             if (!selectedMatches) return false;
 
             const hasBetterMatch = allColorTerms.some(term => {
                 if (term.slug === active) return false;
-                const termMatches = isMatch(src, term.slug) || isMatch(alt, term.slug) || 
-                                   (term.name && (isMatch(src, term.name) || isMatch(alt, term.name)));
-                
+                const termMatches = isMatch(src, term.slug) || isMatch(alt, term.slug) ||
+                    (term.name && (isMatch(src, term.name) || isMatch(alt, term.name)));
+
                 if (termMatches) {
                     return term.slug.length > colorSlug.length || (term.name && term.name.length > colorName.length);
                 }
@@ -340,10 +340,10 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                 const targetNames = getSynonyms(t.name);
                 const s = baseSrc.toLowerCase();
                 return targetSyns.some(syn => s.includes(`-${syn}`)) ||
-                       targetSyns.some(syn => s.includes(`_${syn}`)) ||
-                       targetSyns.some(syn => s.includes(syn)) ||
-                       targetNames.some(syn => s.includes(`-${syn}`)) ||
-                       targetNames.some(syn => s.includes(syn));
+                    targetSyns.some(syn => s.includes(`_${syn}`)) ||
+                    targetSyns.some(syn => s.includes(syn)) ||
+                    targetNames.some(syn => s.includes(`-${syn}`)) ||
+                    targetNames.some(syn => s.includes(syn));
             });
 
             if (!colorInUrl) {
@@ -353,10 +353,10 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                         const targetNames = getSynonyms(t.name);
                         const s = img.src.toLowerCase();
                         return targetSyns.some(syn => s.includes(`-${syn}`)) ||
-                               targetSyns.some(syn => s.includes(`_${syn}`)) ||
-                               targetSyns.some(syn => s.includes(syn)) ||
-                               targetNames.some(syn => s.includes(`-${syn}`)) ||
-                               targetNames.some(syn => s.includes(syn));
+                            targetSyns.some(syn => s.includes(`_${syn}`)) ||
+                            targetSyns.some(syn => s.includes(syn)) ||
+                            targetNames.some(syn => s.includes(`-${syn}`)) ||
+                            targetNames.some(syn => s.includes(syn));
                     });
                     if (found) {
                         colorInUrl = found;
@@ -367,11 +367,11 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
 
             if (colorInUrl) {
                 if (colorInUrl.slug === active) {
-                   return currentProduct.images.filter((img: { src: string }) => {
-                       const targetSyns = getSynonyms(colorInUrl!.slug);
-                       const s = img.src.toLowerCase();
-                       return targetSyns.some(syn => s.includes(syn)) || s.includes(colorInUrl!.name.toLowerCase());
-                   });
+                    return currentProduct.images.filter((img: { src: string }) => {
+                        const targetSyns = getSynonyms(colorInUrl!.slug);
+                        const s = img.src.toLowerCase();
+                        return targetSyns.some(syn => s.includes(syn)) || s.includes(colorInUrl!.name.toLowerCase());
+                    });
                 }
 
                 const targetSyns = getSynonyms(colorInUrl.slug);
@@ -626,6 +626,7 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 setSelectedColor(term.slug);
+                                                setHoveredColor(null);
                                             }}
                                             onMouseEnter={() => setHoveredColor(term.slug)}
                                             onMouseLeave={() => setHoveredColor(null)}
@@ -662,7 +663,7 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                     </div>
                 )}
 
-                    <div className="product-info">
+                <div className="product-info">
                     <div className="info-top-row">
                         <h3>
                             <a href={`/productos/${product.slug}${selectedColor ? `?color=${selectedColor}` : ''}`}>{product.name}</a>
@@ -674,8 +675,8 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                         <div className="card-bundle-selectors">
                             {colorAttribute && (
                                 <div className="bundle-selector-field">
-                                    <select 
-                                        value={selectedColor || ''} 
+                                    <select
+                                        value={selectedColor || ''}
                                         onChange={(e) => setSelectedColor(e.target.value)}
                                         className="variation-select"
                                     >
@@ -703,8 +704,8 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
 
                             {sizeAttribute && (
                                 <div className="bundle-selector-field">
-                                    <select 
-                                        value={selectedSize || ''} 
+                                    <select
+                                        value={selectedSize || ''}
                                         onChange={(e) => setSelectedSize(e.target.value)}
                                         className="variation-select"
                                     >

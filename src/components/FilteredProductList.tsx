@@ -203,7 +203,7 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
         if (!category?.id) return;
         if (append) setLoadingMore(true); else setLoading(true);
         setError(null);
-        
+
         try {
             const params = new URLSearchParams();
             params.append('category', category.id.toString());
@@ -218,7 +218,7 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
 
             const data = await response.json();
             const newProducts = Array.isArray(data) ? data : [];
-            
+
             if (append) {
                 setAllFetchedProducts(prev => [...prev, ...newProducts]);
             } else {
@@ -264,7 +264,7 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
 
         observer.observe(target);
         return () => observer.disconnect();
-    }, [hasMore, loadingMore, loading, page, sort]);
+    }, [hasMore, loadingMore, page, sort]);
 
     const handleSortChange = (newSort: any) => {
         setSort(newSort);
