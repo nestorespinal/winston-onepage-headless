@@ -225,7 +225,7 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
                 setAllFetchedProducts(newProducts);
             }
 
-            if (newProducts.length < 0) {
+            if (newProducts.length === 0) {
                 setHasMore(false);
             } else {
                 setHasMore(true);
