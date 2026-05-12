@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ProductCard from './ProductCard';
 
 interface FilteredProductListProps {
@@ -239,32 +239,32 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
         }
     };
 
-    const loadMore = () => {
+    const loadMore = useCallback(() => {
         if (loadingMore || !hasMore) return;
-        const nextPage = page + 1;
-        setPage(nextPage);
-        fetchBaseProducts(sort, nextPage, true);
-    };
+
+        setPage(prevPage => {
+            const nextPage = prevPage + 1;
+            fetchBaseProducts(sort, nextPage, true);
+            return nextPage;
+        });
+    }, [loadingMore, hasMore, sort]);
 
     // Intersection Observer for Infinite Scroll
-    const observerTarget = useRef(null);
+    const observer = useRef<IntersectionObserver | null>(null);
 
-    useEffect(() => {
-        const target = observerTarget.current;
-        if (!target || !hasMore) return;
+    const observerTarget = useCallback((node: HTMLDivElement | null) => {
+        if (loadingMore) return;
 
-        const observer = new IntersectionObserver(
-            entries => {
-                if (entries[0].isIntersecting && hasMore && !loadingMore) {
-                    loadMore();
-                }
-            },
-            { threshold: 0.1 }
-        );
+        if (observer.current) observer.current.disconnect();
 
-        observer.observe(target);
-        return () => observer.disconnect();
-    }, [hasMore, loadingMore, page, sort]);
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && hasMore) {
+                loadMore();
+            }
+        }, { threshold: 0.1 });
+
+        if (node) observer.current.observe(node);
+    }, [loadingMore, hasMore, loadMore]);
 
     const handleSortChange = (newSort: any) => {
         setSort(newSort);
