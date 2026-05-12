@@ -1210,11 +1210,11 @@ export default function ProductDetail({ initialProduct }: Props) {
         </div>
       </div>
 
-      {/* SECCIÓN EL COMPLEMENTO IDEAL (Uso de ProductCard para consistencia) */}
+      {/* SECCIÓN COMPRADOS JUNTOS HABITUALMENTE (Uso de ProductCard para consistencia) */}
       {product.fbt_products && product.fbt_products.length > 0 && (
         <section className="fbt-new-section">
           <div className="fbt-fullwidth-container">
-            <h2 className="fbt-title-premium">El Complemento Ideal</h2>
+            <h2 className="fbt-title-premium">Combínalo con:</h2>
             <div className="fbt-bundle-grid">
               <div className="fbt-visual-row">
                 <div className="fbt-bundle-step">
