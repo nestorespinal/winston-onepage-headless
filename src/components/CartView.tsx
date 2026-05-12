@@ -45,6 +45,19 @@ export default function CartView() {
     const total = subtotal + shippingCost;
 
     const handleCheckout = () => {
+        if (typeof window !== 'undefined') {
+            (window as any).dataLayer = (window as any).dataLayer || [];
+            (window as any).dataLayer.push({
+                event: 'begin_checkout',
+                currency: 'COP', value: total,
+                items: items.map(item => ({ item_id: String(item.id), item_name: item.name, price: item.price, quantity: item.quantity }))
+            });
+            if (typeof (window as any).fbq === 'function') {
+                (window as any).fbq('track', 'InitiateCheckout', {
+                    content_ids: items.map(item => String(item.id)), content_type: 'product', value: total, currency: 'COP', num_items: items.length
+                });
+            }
+        }
         redirectToCheckout('/checkout/', couponCode);
     };
 
@@ -175,12 +188,12 @@ export default function CartView() {
                                 );
                             })}
                         </div>
-                        
+
                         <div className="cart-actions-bottom">
                             <div className="coupon-wrapper">
-                                <input 
-                                    type="text" 
-                                    placeholder="Código de cupón" 
+                                <input
+                                    type="text"
+                                    placeholder="Código de cupón"
                                     className="coupon-input"
                                     value={couponCode}
                                     onChange={(e) => setCouponCode(e.target.value)}

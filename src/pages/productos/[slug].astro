@@ -179,3 +179,35 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=86400, stale-while
     </script>
   )
 }
+{product && (
+  <script
+    is:inline
+    data-product-id={String(product.id)}
+    data-product-price={String(product.price ?? product.regular_price ?? '0')}
+    data-product-name={product.name}
+    id="ga4-view-item"
+  >
+    (function () {
+      function fireViewItem() {
+        var el = document.getElementById('ga4-view-item');
+        if (!el) return;
+        var productId = el.getAttribute('data-product-id');
+        var productName = el.getAttribute('data-product-name');
+        var price = parseFloat(el.getAttribute('data-product-price')) || 0;
+        if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+          window.gtag('event', 'view_item', {
+            currency: 'COP',
+            value: price,
+            items: [{ item_id: productId, item_name: productName, price: price, quantity: 1 }]
+          });
+        }
+      }
+      document.addEventListener('astro:page-load', fireViewItem);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fireViewItem);
+      } else {
+        fireViewItem();
+      }
+    })();
+  </script>
+)}
