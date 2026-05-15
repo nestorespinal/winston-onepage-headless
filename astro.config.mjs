@@ -52,14 +52,14 @@ export default defineConfig({
   },
   output: 'static',
   adapter: vercel({
-    maxDuration: 300
+    maxDuration: 60
   }),
   security: {
     checkOrigin: false
   },
   trailingSlash: 'ignore',
   prefetch: {
-    prefetchAll: true,
+    prefetchAll: false,
     defaultStrategy: 'hover'
   },
   image: {

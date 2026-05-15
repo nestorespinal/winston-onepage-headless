@@ -11,82 +11,113 @@ const slots = result.slots || 1;
 const displaySlides = allSlides.slice(0, slots);
 
 // Si no hay diapositivas, usamos una por defecto para no romper el diseño
-const finalSlides = displaySlides.length > 0 ? displaySlides : [
-    {
-        title: "Ropa y Zapatos de Cuero para Hombre",
-        subtitle: "Hechos a mano en Colombia y diseñados para durar.",
-        media_url: "/videos/hero-video.mp4",
-        is_video: true,
-        btn1_title: "Explorar Colección",
-        btn1_link: "/tienda",
-        btn2_title: "Conoce Nuestra Historia",
-        btn2_link: "#nosotros"
-    }
-];
+const finalSlides =
+    displaySlides.length > 0
+        ? displaySlides
+        : [
+              {
+                  title: "Ropa y Zapatos de Cuero para Hombre",
+                  subtitle: "Hechos a mano en Colombia y diseñados para durar.",
+                  media_url: "/videos/hero-video.mp4",
+                  is_video: true,
+                  btn1_title: "Explorar Colección",
+                  btn1_link: "/tienda",
+                  btn2_title: "Conoce Nuestra Historia",
+                  btn2_link: "#nosotros",
+              },
+          ];
 ---
 
 <section id="inicio" class="hero swiper hero-slider">
     <div class="swiper-wrapper">
-        {finalSlides.map((slide) => (
-            <div class="swiper-slide">
-                <div class="image-background">
-                    {slide.is_video ? (
-                        <video
-                            class="hero-bg-image"
-                            autoplay
-                            muted
-                            playsinline
-                            poster="/images/banner-winston-and-harry-maletas.png"
-                        >
-                            <source src={slide.media_url} type="video/mp4" />
-                        </video>
-                    ) : (
-                        <img 
-                            src={getOptimizedUrl(slide.media_url, { width: 1920 })} 
-                            srcset={getImageSrcSet(slide.media_url, [800, 1200, 1920])}
-                            sizes="100vw"
-                            class="hero-bg-image" 
-                            alt={slide.title}
-                            loading="eager"
-                            decoding="sync"
-                        />
-                    )}
-                    <div class="overlay"></div>
-                </div>
+        {
+            finalSlides.map((slide) => (
+                <div class="swiper-slide">
+                    <div class="image-background">
+                        {slide.is_video ? (
+                            <video
+                                class="hero-bg-image"
+                                autoplay
+                                muted
+                                playsinline
+                                preload="none"
+                                poster="/images/banner-winston-and-harry-maletas.png"
+                            >
+                                <source
+                                    src={slide.media_url}
+                                    type="video/mp4"
+                                />
+                            </video>
+                        ) : (
+                            <img
+                                src={getOptimizedUrl(slide.media_url, {
+                                    width: 1920,
+                                })}
+                                srcset={getImageSrcSet(
+                                    slide.media_url,
+                                    [800, 1200, 1920]
+                                )}
+                                sizes="100vw"
+                                class="hero-bg-image"
+                                alt={slide.title}
+                                loading="eager"
+                                decoding="sync"
+                            />
+                        )}
+                        <div class="overlay" />
+                    </div>
 
-                <div class="hero-content">
-                    <h1 class="hero-title" set:html={slide.title}></h1>
-                    <p class="hero-subtitle" set:html={slide.subtitle}></p>
-                    <div class="hero-actions">
-                        {slide.btn1_title && (
-                            <a href={slide.btn1_link} class="btn-primary" set:html={slide.btn1_title}></a>
-                        )}
-                        {slide.btn2_title && (
-                            <a href={slide.btn2_link} class="btn-secondary" set:html={slide.btn2_title}></a>
-                        )}
+                    <div class="hero-content">
+                        <h1 class="hero-title" set:html={slide.title} />
+                        <p class="hero-subtitle" set:html={slide.subtitle} />
+                        <div class="hero-actions">
+                            {slide.btn1_title && (
+                                <a
+                                    href={slide.btn1_link}
+                                    class="btn-primary"
+                                    set:html={slide.btn1_title}
+                                />
+                            )}
+                            {slide.btn2_title && (
+                                <a
+                                    href={slide.btn2_link}
+                                    class="btn-secondary"
+                                    set:html={slide.btn2_title}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-        ))}
+            ))
+        }
     </div>
-    
+
     <!-- Controles del Slider -->
     <div class="swiper-pagination"></div>
 </section>
 
 <!-- Swiper dependencies -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-<script is:inline src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
+    media="print"
+    onload="this.media='all'"
+/>
+<script
+    is:inline
+    defer
+    src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"
+></script>
 
 <script is:inline>
     function initHeroSlider() {
-        const swiperEl = document.querySelector('.hero-slider');
+        const swiperEl = document.querySelector(".hero-slider");
         if (!swiperEl) return;
 
-        const swiper = new Swiper('.hero-slider', {
-            effect: 'fade',
+        const swiper = new Swiper(".hero-slider", {
+            effect: "fade",
             fadeEffect: {
-                crossFade: true
+                crossFade: true,
             },
             loop: true,
             speed: 1500,
@@ -95,7 +126,7 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
                 disableOnInteraction: false,
             },
             pagination: {
-                el: '.swiper-pagination',
+                el: ".swiper-pagination",
                 clickable: true,
             },
             on: {
@@ -104,18 +135,18 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
                 },
                 slideChange: function () {
                     checkVideo(this);
-                }
-            }
+                },
+            },
         });
 
         function checkVideo(instance) {
             const activeSlide = instance.slides[instance.activeIndex];
-            const video = activeSlide?.querySelector('video');
+            const video = activeSlide?.querySelector("video");
 
             if (video) {
                 // Si hay video, detenemos el autoplay de Swiper
                 instance.autoplay.stop();
-                
+
                 // Nos aseguramos de que el video empiece desde el inicio
                 video.currentTime = 0;
                 video.play().catch(() => {});
@@ -133,7 +164,7 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
     }
 
     // Inicializar en carga y en transiciones de página
-    document.addEventListener('astro:page-load', initHeroSlider);
+    document.addEventListener("astro:page-load", initHeroSlider);
     if (!window.swiperInitialized) {
         initHeroSlider();
         window.swiperInitialized = true;
@@ -233,7 +264,8 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
         flex-wrap: wrap;
     }
 
-    .btn-primary, .btn-secondary {
+    .btn-primary,
+    .btn-secondary {
         display: inline-block;
         padding: 1rem 2.5rem;
         font-family: var(--font-titles);
@@ -288,8 +320,14 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
     }
 
     @keyframes fadeInUp {
-        0% { opacity: 0; transform: translateY(40px); }
-        100% { opacity: 1; transform: translateY(0); }
+        0% {
+            opacity: 0;
+            transform: translateY(40px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     @media (max-width: 992px) {
@@ -299,8 +337,16 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
             margin-top: 65px;
         }
 
-        .hero-title { font-size: 1.25rem; }
-        .hero-content { margin-top: 15vh; }
-        .btn-primary, .btn-secondary { width: 100%; min-width: unset; }
+        .hero-title {
+            font-size: 1.25rem;
+        }
+        .hero-content {
+            margin-top: 15vh;
+        }
+        .btn-primary,
+        .btn-secondary {
+            width: 100%;
+            min-width: unset;
+        }
     }
 </style>

@@ -20,7 +20,7 @@ const initialProducts = await getProductsByCategory(
 	24,
 	1,
 	"popularity",
-	"desc",
+	"desc"
 );
 ---
 
@@ -33,7 +33,7 @@ const initialProducts = await getProductsByCategory(
 		<div class="content-wrapper">
 			<FeaturesBanner />
 			<CategoryGrid />
-			<ProductGrid client:load initialProducts={initialProducts} />
+			<ProductGrid client:visible initialProducts={initialProducts} />
 			<ScrollRevealBanner
 				imageUrl="/images/banner-look-completo.webp"
 				title="Estilo que se construye con intención"
