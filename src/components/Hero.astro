@@ -2,8 +2,15 @@
 import { getHeroSlides } from "../lib/hero";
 import { getOptimizedUrl, getImageSrcSet } from "../utils/image";
 
-// Fetch dynamic data
-const result = await getHeroSlides();
+// Fetch dynamic data con timeout de 3s para no bloquear el SSR
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+const result = await withTimeout(getHeroSlides(), 3000, { slides: [], slots: 0 });
+
 const allSlides = result.slides || [];
 const slots = result.slots || 1;
 

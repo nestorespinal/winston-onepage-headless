@@ -14,14 +14,19 @@ import { getHomeSEO, getProductsByCategory } from "../lib/woocommerce";
 
 export const prerender = false;
 
-const homeSeo = await getHomeSEO();
-const initialProducts = await getProductsByCategory(
-	"63",
-	24,
-	1,
-	"popularity",
-	"desc",
-);
+// Helper: ejecuta una promesa con timeout (ms). Si excede, devuelve el fallback.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+// Todas las llamadas al API en paralelo con timeout global de 3s para no bloquear el SSR.
+const [homeSeo, initialProducts] = await Promise.all([
+  withTimeout(getHomeSEO(), 3000, null),
+  withTimeout(getProductsByCategory("63", 24, 1, "popularity", "desc"), 3000, []),
+]);
 ---
 
 <Layout title={homeSeo?.title} seoData={homeSeo}>

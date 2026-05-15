@@ -77,7 +77,7 @@ function normalizeQuery(text: string): string {
     return text.trim().toLowerCase();
 }
 
-export async function wcFetch(path: string, options: RequestInit = {}, retries = 3, delay = 1500) {
+export async function wcFetch(path: string, options: RequestInit = {}, retries = 3, delay = 500, timeoutMs = 4000) {
     // Leemos las claves en RUNTIME
     const CK = (getEnv('WC_CONSUMER_KEY') || getEnv('WP_CONSUMER_KEY') || "").trim();
     const CS = (getEnv('WC_CONSUMER_SECRET') || getEnv('WP_CONSUMER_SECRET') || "").trim();
@@ -148,8 +148,14 @@ export async function wcFetch(path: string, options: RequestInit = {}, retries =
 
     for (let i = 0; i < retries; i++) {
         try {
-            const startTime = Date.now();
-            const res = await fetch(url, { ...options, headers });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            let res: Response;
+            try {
+                res = await fetch(url, { ...options, headers, signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
             const endTime = Date.now();
             
             // Log removed for production
