@@ -48,6 +48,7 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
                             class="hero-bg-image" 
                             alt={slide.title}
                             loading="eager"
+                            fetchpriority="high"
                             decoding="sync"
                         />
                     )}
@@ -74,16 +75,22 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
     <div class="swiper-pagination"></div>
 </section>
 
-<!-- Swiper dependencies -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-<script is:inline src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script>
+    import Swiper from 'swiper';
+    import { Autoplay, EffectFade, Pagination } from 'swiper/modules';
+    import 'swiper/css';
+    import 'swiper/css/effect-fade';
+    import 'swiper/css/pagination';
 
-<script is:inline>
     function initHeroSlider() {
         const swiperEl = document.querySelector('.hero-slider');
         if (!swiperEl) return;
 
+        // Prevenir inicializaciones múltiples si view transitions duplica la llamada
+        if (swiperEl.swiper) return;
+
         const swiper = new Swiper('.hero-slider', {
+            modules: [Autoplay, EffectFade, Pagination],
             effect: 'fade',
             fadeEffect: {
                 crossFade: true
@@ -107,6 +114,9 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
                 }
             }
         });
+
+        // Guardamos la instancia en el elemento
+        swiperEl.swiper = swiper;
 
         function checkVideo(instance) {
             const activeSlide = instance.slides[instance.activeIndex];
@@ -134,9 +144,12 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
 
     // Inicializar en carga y en transiciones de página
     document.addEventListener('astro:page-load', initHeroSlider);
-    if (!window.swiperInitialized) {
+    
+    // Al cargarse el script como módulo, inicializar si el DOM ya está listo
+    if (document.readyState !== 'loading') {
         initHeroSlider();
-        window.swiperInitialized = true;
+    } else {
+        document.addEventListener('DOMContentLoaded', initHeroSlider);
     }
 </script>
 

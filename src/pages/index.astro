@@ -13,6 +13,11 @@ import BlogHome from "../components/BlogHome.astro";
 import { getHomeSEO, getProductsByCategory } from "../lib/woocommerce";
 
 export const prerender = false;
+export const config = {
+  isr: {
+    expiration: 86400, // Revalidación cada 24 horas
+  },
+};
 
 const homeSeo = await getHomeSEO();
 const initialProducts = await getProductsByCategory(
