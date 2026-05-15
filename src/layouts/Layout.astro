@@ -79,7 +79,12 @@ const seo = rawSeo || {
         <link rel="preconnect" href="https://use.typekit.net" crossorigin />
         <link rel="dns-prefetch" href={PUBLIC_WP_URL} />
         <link rel="preload" href="https://use.typekit.net/lpl0lgn.css" as="style" />
-        <link rel="stylesheet" href="https://use.typekit.net/lpl0lgn.css" />
+        <link
+            rel="stylesheet"
+            href="https://use.typekit.net/lpl0lgn.css"
+            media="print"
+            onload="this.media='all'"
+        />
         <link
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
@@ -120,8 +125,8 @@ const seo = rawSeo || {
         <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NRK6FQ5N"
         height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <!-- End Google Tag Manager (noscript) -->
-        <SideCart client:load />
-        <SearchDrawer client:load />
+        <SideCart client:idle />
+        <SearchDrawer client:idle />
         <slot />
         <CookieBanner />
     </body>

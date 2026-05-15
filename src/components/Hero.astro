@@ -38,16 +38,29 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
             <div class="swiper-slide">
                 <div class="image-background">
                     {slide.is_video ? (
-                        <video
-                            class="hero-bg-image"
-                            autoplay
-                            muted
-                            playsinline
-                            preload="none"
-                            poster="/images/banner-winston-and-harry-maletas.webp"
-                        >
-                            <source src={slide.media_url} type="video/mp4" />
-                        </video>
+                        <>
+                            {/* Poster como <img> real: el browser lo descarga con máxima prioridad (LCP fix) */}
+                            <img
+                                src="/images/banner-winston-and-harry-maletas.webp"
+                                class="hero-bg-image hero-poster"
+                                alt="Winston & Harry — Ropa y zapatos de cuero para hombre"
+                                fetchpriority="high"
+                                loading="eager"
+                                decoding="sync"
+                                width="1920"
+                                height="1080"
+                            />
+                            {/* Video SIN poster (ya tenemos el <img> encima) — se superpone al cargar */}
+                            <video
+                                class="hero-bg-image hero-video-layer"
+                                autoplay
+                                muted
+                                playsinline
+                                preload="none"
+                            >
+                                <source src={slide.media_url} type="video/mp4" />
+                            </video>
+                        </>
                     ) : (
                         <img 
                             src={getOptimizedUrl(slide.media_url, { width: 1920 })} 
@@ -83,82 +96,70 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
     <div class="swiper-pagination"></div>
 </section>
 
-<script>
-    import Swiper from 'swiper';
-    import { Autoplay, EffectFade, Pagination } from 'swiper/modules';
-    import 'swiper/css';
-    import 'swiper/css/effect-fade';
-    import 'swiper/css/pagination';
+<!-- Swiper CSS: no bloqueante (media print trick) -->
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
+    media="print"
+    onload="this.media='all'"
+/>
+<!-- Swiper JS: diferido, no bloquea el hilo principal -->
+<script defer src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
+<script is:inline>
     function initHeroSlider() {
+        if (typeof Swiper === 'undefined') {
+            // Swiper aún no cargó (defer), reintentamos en 100ms
+            setTimeout(initHeroSlider, 100);
+            return;
+        }
+
         const swiperEl = document.querySelector('.hero-slider');
         if (!swiperEl) return;
-
-        // Prevenir inicializaciones múltiples si view transitions duplica la llamada
-        if (swiperEl.swiper) return;
+        if (swiperEl._swiperInit) return;
+        swiperEl._swiperInit = true;
 
         const swiper = new Swiper('.hero-slider', {
-            modules: [Autoplay, EffectFade, Pagination],
             effect: 'fade',
-            fadeEffect: {
-                crossFade: true
-            },
+            fadeEffect: { crossFade: true },
             loop: true,
             speed: 1500,
-            autoplay: {
-                delay: 6000,
-                disableOnInteraction: false,
-            },
-            pagination: {
-                el: '.swiper-pagination',
-                clickable: true,
-            },
+            autoplay: { delay: 6000, disableOnInteraction: false },
+            pagination: { el: '.swiper-pagination', clickable: true },
             on: {
-                init: function () {
-                    checkVideo(this);
-                },
-                slideChange: function () {
-                    checkVideo(this);
-                }
+                init: function () { checkVideo(this); },
+                slideChange: function () { checkVideo(this); }
             }
         });
-
-        // Guardamos la instancia en el elemento
-        swiperEl.swiper = swiper;
 
         function checkVideo(instance) {
             const activeSlide = instance.slides[instance.activeIndex];
             const video = activeSlide?.querySelector('video');
+            const poster = activeSlide?.querySelector('.hero-poster');
 
             if (video) {
-                // Si hay video, detenemos el autoplay de Swiper
                 instance.autoplay.stop();
-                
-                // Nos aseguramos de que el video empiece desde el inicio
                 video.currentTime = 0;
                 video.play().catch(() => {});
 
-                // Cuando el video termine, pasamos al siguiente slide y reactivamos autoplay
+                // Cuando el video esté reproduciéndose, ocultamos el poster
+                video.addEventListener('playing', () => {
+                    if (poster) poster.style.opacity = '0';
+                }, { once: true });
+
                 video.onended = () => {
+                    if (poster) poster.style.opacity = '1';
                     instance.slideNext();
                     instance.autoplay.start();
                 };
             } else {
-                // Si es imagen, nos aseguramos de que el autoplay esté activo
                 instance.autoplay.start();
             }
         }
     }
 
-    // Inicializar en carga y en transiciones de página
     document.addEventListener('astro:page-load', initHeroSlider);
-    
-    // Al cargarse el script como módulo, inicializar si el DOM ya está listo
-    if (document.readyState !== 'loading') {
-        initHeroSlider();
-    } else {
-        document.addEventListener('DOMContentLoaded', initHeroSlider);
-    }
+    document.addEventListener('DOMContentLoaded', initHeroSlider);
 </script>
 
 <style>
@@ -213,6 +214,18 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
         height: 100%;
         object-fit: cover;
         z-index: 0;
+    }
+
+    /* El poster (img) siempre visible debajo, el video encima con transición */
+    .hero-poster {
+        z-index: 0;
+        transition: opacity 0.5s ease;
+    }
+
+    .hero-video-layer {
+        z-index: 1;
+        opacity: 1;
+        transition: opacity 0.5s ease;
     }
 
     .hero-content {
