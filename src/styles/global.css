@@ -1,5 +1,4 @@
-/* Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Antonio:wght@300;400;700&display=swap');
+/* Fonts — Google Fonts cargado de forma no bloqueante desde Layout.astro */
 
 :root {
   --color-beige: #B1915F;
