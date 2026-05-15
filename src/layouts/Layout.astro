@@ -73,6 +73,9 @@ const seo = rawSeo || {
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="canonical" href={seo.canonical} />
 
+        {/* Preload del poster del Hero para mejorar LCP */}
+        <link rel="preload" as="image" href="/images/banner-winston-and-harry-maletas.webp" fetchpriority="high" />
+
         <link rel="preconnect" href="https://use.typekit.net" crossorigin />
         <link rel="dns-prefetch" href={PUBLIC_WP_URL} />
         <link rel="preload" href="https://use.typekit.net/lpl0lgn.css" as="style" />

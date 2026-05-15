@@ -52,7 +52,10 @@ export default defineConfig({
   },
   output: 'static',
   adapter: vercel({
-    maxDuration: 300
+    maxDuration: 300,
+    isr: {
+      expiration: 60 * 60 * 24, // Revalida en background cada 24h (stale-while-revalidate)
+    },
   }),
   security: {
     checkOrigin: false
