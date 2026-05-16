@@ -88,9 +88,9 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
     <div class="swiper-pagination"></div>
 </section>
 
-<!-- Swiper CSS: bloqueante (5KB crítico para el layout del hero) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-<!-- Swiper JS: diferido, no bloquea el hilo principal -->
+<!-- Swiper CSS: self-hosted en Vercel CDN (más rápido que JSDelivr en PSI) -->
+<link rel="stylesheet" href="/styles/swiper-bundle.min.css" />
+<!-- Swiper JS: diferido desde CDN, no bloquea el hilo principal -->
 <script defer src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
 <script is:inline>

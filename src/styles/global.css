@@ -121,6 +121,18 @@ img {
   transform: translateY(0);
 }
 
+/* Protección LCP: el poster nunca debe ser transformado ni recortado por el reveal */
+.hero-poster {
+  transform: none !important;
+  visibility: visible !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
 .reveal {
   animation: fadeIn 0.8s ease-out forwards;
 }
