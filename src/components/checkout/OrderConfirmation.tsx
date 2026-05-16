@@ -13,10 +13,29 @@ export default function OrderConfirmation() {
     useEffect(() => {
         const raw = sessionStorage.getItem('wh_last_order');
         if (raw) {
-            setOrder(JSON.parse(raw));
+            const parsedOrder = JSON.parse(raw);
+            setOrder(parsedOrder);
             sessionStorage.removeItem('wh_last_order');
-            // Limpiar carrito al confirmar que la orden se procesó
             clearCart();
+
+            // GA4 + Meta Purchase
+            const alreadyTracked = sessionStorage.getItem('tracked_order_' + parsedOrder.id);
+            if (!alreadyTracked && typeof window !== 'undefined') {
+                const orderTotal = parseFloat(String(parsedOrder.total || '0')) || 0;
+                const orderItems = parsedOrder.items || [];
+                (window as any).dataLayer = (window as any).dataLayer || [];
+                (window as any).dataLayer.push({
+                    event: 'purchase',
+                    transaction_id: String(parsedOrder.id), currency: 'COP', value: orderTotal,
+                    items: orderItems.map((item: any) => ({ item_id: String(item.id), item_name: item.name, price: item.price, quantity: item.quantity }))
+                });
+                if (typeof (window as any).fbq === 'function') {
+                    (window as any).fbq('track', 'Purchase', {
+                        content_ids: orderItems.map((item: any) => String(item.id)), content_type: 'product', value: orderTotal, currency: 'COP'
+                    });
+                }
+                sessionStorage.setItem('tracked_order_' + parsedOrder.id, 'true');
+            }
         }
     }, []);
 
@@ -26,8 +45,8 @@ export default function OrderConfirmation() {
                 <div className="confirmation-box">
                     <div className="check-icon">
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-                            <polyline points="22 4 12 14.01 9 11.01"/>
+                            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
                         </svg>
                     </div>
 

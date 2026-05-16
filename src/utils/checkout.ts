@@ -62,5 +62,19 @@ export async function redirectToCheckout(path: string = '/', coupon: string = ''
         finalUrl += `&autologin=${token}`;
     }
 
+    // Disparar evento de Meta Pixel: InitiateCheckout
+    if (typeof window !== 'undefined' && typeof (window as any).fbq === 'function') {
+        const cartValue = items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
+        const itemIds = items.map((item: any) => item.id.toString());
+        
+        (window as any).fbq('track', 'InitiateCheckout', {
+            content_ids: itemIds,
+            content_type: 'product',
+            value: cartValue,
+            currency: 'COP',
+            num_items: items.reduce((acc: number, item: any) => acc + item.quantity, 0)
+        });
+    }
+
     window.location.href = finalUrl;
 }

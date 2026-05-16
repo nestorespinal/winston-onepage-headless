@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { getOptimizedUrl, getImageSrcSet } from '../utils/image';
 
 interface Product {
     id: number;
@@ -89,7 +90,7 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             try {
 
                 // Add timestamp to bypass cache and ensure fresh price data
-                const res = await fetch(`/api/products?slug=${product.slug}&t=${Date.now()}`);
+                const res = await fetch(`/api/products?slug=${product.slug}`);
                 if (res.ok) {
                     const fullData = await res.json();
                     if (fullData && fullData.prices) {
@@ -153,11 +154,11 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             const vSize = v.attributes.find((a: any) => {
                 const name = String(a.name || '').toLowerCase();
                 const id = String(a.id || '').toLowerCase();
-                return name.includes('talla') || id.includes('talla') || 
-                       name.includes('size') || id.includes('size') ||
-                       name.includes('tamano') || name.includes('tamaño') ||
-                       name.includes('numero') || name.includes('nmero') ||
-                       name.includes('selecciona-una-talla');
+                return name.includes('talla') || id.includes('talla') ||
+                    name.includes('size') || id.includes('size') ||
+                    name.includes('tamano') || name.includes('tamaño') ||
+                    name.includes('numero') || name.includes('nmero') ||
+                    name.includes('selecciona-una-talla');
             });
 
             const vColorRaw = vColor?.value || vColor?.option || '';
@@ -245,15 +246,15 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             const colorSlugNormalized = normalizeAttr(active);
             // Primero match exacto
             let matchedKey = Object.keys(currentProduct.variation_images_map).find(key => normalizeAttr(key) === colorSlugNormalized);
-            
+
             // Fallback match parcial si no hay exacto
             if (!matchedKey) {
                 matchedKey = Object.keys(currentProduct.variation_images_map).find(
                     key => {
                         const k = normalizeAttr(key);
                         return (colorSlugNormalized === 'vinotinto' && k === 'vino') ||
-                               (colorSlugNormalized === 'vino' && k === 'vinotinto') ||
-                               (colorSlugNormalized.length > 3 && k.includes(colorSlugNormalized));
+                            (colorSlugNormalized === 'vino' && k === 'vinotinto') ||
+                            (colorSlugNormalized.length > 3 && k.includes(colorSlugNormalized));
                     }
                 );
             }
@@ -279,18 +280,18 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             const src = (img.src || "").toLowerCase();
             const alt = (img.alt || "").toLowerCase();
             const name = (img.name || "").toLowerCase();
-            
-            const selectedMatches = isMatch(src, colorSlug) || isMatch(alt, colorSlug) || 
-                                    (colorName && (isMatch(src, colorName) || isMatch(alt, colorName))) ||
-                                    colorSynonyms.some(s => isMatch(src, s) || isMatch(alt, s));
+
+            const selectedMatches = isMatch(src, colorSlug) || isMatch(alt, colorSlug) ||
+                (colorName && (isMatch(src, colorName) || isMatch(alt, colorName))) ||
+                colorSynonyms.some(s => isMatch(src, s) || isMatch(alt, s));
 
             if (!selectedMatches) return false;
 
             const hasBetterMatch = allColorTerms.some(term => {
                 if (term.slug === active) return false;
-                const termMatches = isMatch(src, term.slug) || isMatch(alt, term.slug) || 
-                                   (term.name && (isMatch(src, term.name) || isMatch(alt, term.name)));
-                
+                const termMatches = isMatch(src, term.slug) || isMatch(alt, term.slug) ||
+                    (term.name && (isMatch(src, term.name) || isMatch(alt, term.name)));
+
                 if (termMatches) {
                     return term.slug.length > colorSlug.length || (term.name && term.name.length > colorName.length);
                 }
@@ -339,10 +340,10 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                 const targetNames = getSynonyms(t.name);
                 const s = baseSrc.toLowerCase();
                 return targetSyns.some(syn => s.includes(`-${syn}`)) ||
-                       targetSyns.some(syn => s.includes(`_${syn}`)) ||
-                       targetSyns.some(syn => s.includes(syn)) ||
-                       targetNames.some(syn => s.includes(`-${syn}`)) ||
-                       targetNames.some(syn => s.includes(syn));
+                    targetSyns.some(syn => s.includes(`_${syn}`)) ||
+                    targetSyns.some(syn => s.includes(syn)) ||
+                    targetNames.some(syn => s.includes(`-${syn}`)) ||
+                    targetNames.some(syn => s.includes(syn));
             });
 
             if (!colorInUrl) {
@@ -352,10 +353,10 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                         const targetNames = getSynonyms(t.name);
                         const s = img.src.toLowerCase();
                         return targetSyns.some(syn => s.includes(`-${syn}`)) ||
-                               targetSyns.some(syn => s.includes(`_${syn}`)) ||
-                               targetSyns.some(syn => s.includes(syn)) ||
-                               targetNames.some(syn => s.includes(`-${syn}`)) ||
-                               targetNames.some(syn => s.includes(syn));
+                            targetSyns.some(syn => s.includes(`_${syn}`)) ||
+                            targetSyns.some(syn => s.includes(syn)) ||
+                            targetNames.some(syn => s.includes(`-${syn}`)) ||
+                            targetNames.some(syn => s.includes(syn));
                     });
                     if (found) {
                         colorInUrl = found;
@@ -366,11 +367,11 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
 
             if (colorInUrl) {
                 if (colorInUrl.slug === active) {
-                   return currentProduct.images.filter((img: { src: string }) => {
-                       const targetSyns = getSynonyms(colorInUrl!.slug);
-                       const s = img.src.toLowerCase();
-                       return targetSyns.some(syn => s.includes(syn)) || s.includes(colorInUrl!.name.toLowerCase());
-                   });
+                    return currentProduct.images.filter((img: { src: string }) => {
+                        const targetSyns = getSynonyms(colorInUrl!.slug);
+                        const s = img.src.toLowerCase();
+                        return targetSyns.some(syn => s.includes(syn)) || s.includes(colorInUrl!.name.toLowerCase());
+                    });
                 }
 
                 const targetSyns = getSynonyms(colorInUrl.slug);
@@ -498,16 +499,26 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                         <picture className="primary-image">
                             <img
                                 key={mainImage?.src}
-                                src={mainImage?.src || 'https://via.placeholder.com/300x400?text=Zapato'}
+                                src={getOptimizedUrl(mainImage?.src || '', { width: 600 })}
+                                srcSet={getImageSrcSet(mainImage?.src || '', [400, 600, 800])}
+                                sizes="(max-width: 768px) 50vw, 33vw"
                                 alt={mainImage?.alt || product.name}
                                 className="fade-in reveal-on-scroll is-visible"
                                 loading="lazy"
+                                decoding="async"
                                 referrerPolicy="no-referrer"
                                 onError={(e) => {
                                     const target = e.target as HTMLImageElement;
                                     target.onerror = null;
 
-                                    let currentSrc = target.src;
+                                    let currentSrc = target.getAttribute('src') || '';
+
+                                    // Si falló el optimizado, intentar con el original
+                                    if (currentSrc.includes('/_image')) {
+                                        target.src = mainImage?.src || '';
+                                        target.removeAttribute('srcset');
+                                        return;
+                                    }
 
                                     // 1. Intentar quitar .webp (case insensitive)
                                     if (currentSrc.toLowerCase().endsWith('.webp')) {
@@ -537,14 +548,24 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                         {effectiveHoverSrc && (
                             <picture className="hover-image">
                                 <img
-                                    src={effectiveHoverSrc}
+                                    src={getOptimizedUrl(effectiveHoverSrc || '', { width: 600 })}
+                                    srcSet={getImageSrcSet(effectiveHoverSrc || '', [400, 600])}
+                                    sizes="(max-width: 768px) 50vw, 33vw"
                                     alt={hoverImageRaw?.alt || product.name}
                                     className="reveal-on-scroll is-visible"
                                     loading="lazy"
+                                    decoding="async"
                                     referrerPolicy="no-referrer"
                                     onError={(e) => {
                                         const target = e.target as HTMLImageElement;
-                                        const currentSrc = target.src;
+                                        const currentSrc = target.getAttribute('src') || '';
+
+                                        // Si falló el optimizado, intentar con el original
+                                        if (currentSrc.includes('/_image')) {
+                                            target.src = effectiveHoverSrc || '';
+                                            target.removeAttribute('srcset');
+                                            return;
+                                        }
 
                                         // Si falla con .webp, intentar sin .webp
                                         if (currentSrc.toLowerCase().endsWith('.webp')) {
@@ -605,6 +626,7 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 setSelectedColor(term.slug);
+                                                setHoveredColor(null);
                                             }}
                                             onMouseEnter={() => setHoveredColor(term.slug)}
                                             onMouseLeave={() => setHoveredColor(null)}
@@ -641,7 +663,7 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                     </div>
                 )}
 
-                    <div className="product-info">
+                <div className="product-info">
                     <div className="info-top-row">
                         <h3>
                             <a href={`/productos/${product.slug}${selectedColor ? `?color=${selectedColor}` : ''}`}>{product.name}</a>
@@ -653,8 +675,8 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
                         <div className="card-bundle-selectors">
                             {colorAttribute && (
                                 <div className="bundle-selector-field">
-                                    <select 
-                                        value={selectedColor || ''} 
+                                    <select
+                                        value={selectedColor || ''}
                                         onChange={(e) => setSelectedColor(e.target.value)}
                                         className="variation-select"
                                     >
@@ -682,8 +704,8 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
 
                             {sizeAttribute && (
                                 <div className="bundle-selector-field">
-                                    <select 
-                                        value={selectedSize || ''} 
+                                    <select
+                                        value={selectedSize || ''}
                                         onChange={(e) => setSelectedSize(e.target.value)}
                                         className="variation-select"
                                     >

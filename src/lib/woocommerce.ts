@@ -3,7 +3,14 @@
  * Using ck/cs credentials for full access and better data processing.
  */
 
-let WC_URL_ENV = (import.meta.env.WC_URL || import.meta.env.WP_URL || "https://tienda.winstonandharrystore.com").trim();
+const getEnv = (key: string) => {
+    return import.meta.env[key] || 
+           import.meta.env[`PUBLIC_${key}`] || 
+           (typeof process !== 'undefined' ? process.env[key] : undefined) || 
+           (typeof process !== 'undefined' ? process.env[`PUBLIC_${key}`] : undefined);
+};
+
+let WC_URL_ENV = (getEnv('WC_URL') || getEnv('WP_URL') || "https://tienda.winstonandharrystore.com").trim();
 
 // Asegurar que use el subdominio tienda. si es el dominio principal para los llamados a la API
 if (WC_URL_ENV.includes("winstonandharrystore.com") && !WC_URL_ENV.includes("tienda.")) {
@@ -70,10 +77,10 @@ function normalizeQuery(text: string): string {
     return text.trim().toLowerCase();
 }
 
-export async function wcFetch(path: string, options: RequestInit = {}, retries = 3, delay = 1500) {
+export async function wcFetch(path: string, options: RequestInit = {}, retries = 3, delay = 500, timeoutMs = 4000) {
     // Leemos las claves en RUNTIME
-    const CK = (import.meta.env.WC_CONSUMER_KEY || import.meta.env.WP_CONSUMER_KEY || "").trim();
-    const CS = (import.meta.env.WC_CONSUMER_SECRET || import.meta.env.WP_CONSUMER_SECRET || "").trim();
+    const CK = (getEnv('WC_CONSUMER_KEY') || getEnv('WP_CONSUMER_KEY') || "").trim();
+    const CS = (getEnv('WC_CONSUMER_SECRET') || getEnv('WP_CONSUMER_SECRET') || "").trim();
 
     if (import.meta.env.SSR) {
         if (!CK.startsWith('ck_')) console.error(`[WC API] ALERTA: La Key no empieza por 'ck_' (actual: ${CK.substring(0, 4)}...)`);
@@ -106,12 +113,14 @@ export async function wcFetch(path: string, options: RequestInit = {}, retries =
     // Limpieza de dobles barras (excepto las de http://)
     url = url.replace(/([^:]\/)\/+/g, "$1");
 
-    // 3. Determinar si requiere Auth (Namespace wc or wp, and not store)
+    // 3. Determinar si requiere Auth
     const finalCleanPath = url.split('wp-json/')[1] || "";
     const isWcNamespace = finalCleanPath.startsWith('wc/');
     const isWpNamespace = finalCleanPath.startsWith('wp/');
     const isStore = finalCleanPath.includes('wc/store/');
-    const needsAuth = (isWcNamespace || isWpNamespace) && !isStore;
+    
+    // WooCommerce requiere Auth para casi todo excepto Store API
+    const needsWcAuth = isWcNamespace && !isStore;
     
     // 4. Headers base
     const headers: any = {
@@ -119,26 +128,34 @@ export async function wcFetch(path: string, options: RequestInit = {}, retries =
         ...(options.headers || {})
     };
 
-    if (needsAuth && CK && CS) {
-        // 1. Query Params (Siempre van, es lo más confiable en WP)
+    if (needsWcAuth && CK && CS) {
+        // Auth para WooCommerce vía Query Params (más compatible)
         const connector = url.includes('?') ? '&' : '?';
         url += `${connector}consumer_key=${CK}&consumer_secret=${CS}`;
 
-        // 2. Redundancia vía Basic Auth (A veces es obligatorio para POSTs en ciertos hosts)
+        // Redundancia vía Basic Auth
         headers['Authorization'] = `Basic ${safeBtoa(`${CK}:${CS}`)}`;
     } else if (isWpNamespace) {
-        // Para wp/v2 usamos Application Passwords si están disponibles (Prioridad para CPTs)
-        const WP_USER = import.meta.env.WP_APP_USER || "";
-        const WP_PASS = import.meta.env.WP_APP_PASS || "";
+        // Para wp/v2 usamos Application Passwords SOLO si están disponibles
+        const WP_USER = getEnv('WP_APP_USER') || "";
+        const WP_PASS = getEnv('WP_APP_PASS') || "";
         if (WP_USER && WP_PASS) {
             headers['Authorization'] = `Basic ${safeBtoa(`${WP_USER}:${WP_PASS}`)}`;
         }
+        // Si no hay WP_APP_USER, la petición va sin auth (pública), 
+        // que es lo ideal para la mayoría de wp/v2/pages o posts.
     }
 
     for (let i = 0; i < retries; i++) {
         try {
-            const startTime = Date.now();
-            const res = await fetch(url, { ...options, headers });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            let res: Response;
+            try {
+                res = await fetch(url, { ...options, headers, signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
             const endTime = Date.now();
             
             // Log removed for production

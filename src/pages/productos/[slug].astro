@@ -138,3 +138,76 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=86400, stale-while
             min-height: 80vh;
         }
 </style>
+
+{/* ViewContent Meta Pixel – datos del producto disponibles en build time */}
+{
+  product && (
+    <script
+      is:inline
+      data-product-id={String(product.id)}
+      data-product-price={String(product.price ?? product.regular_price ?? '0')}
+      id="meta-view-content"
+    >
+      (function () {
+        function fireViewContent() {
+          var el = document.getElementById('meta-view-content');
+          if (!el) return;
+          var productId = el.getAttribute('data-product-id');
+          var rawPrice  = el.getAttribute('data-product-price');
+          var price     = parseFloat(rawPrice) || 0;
+
+          if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+            window.fbq('track', 'ViewContent', {
+              content_ids:  [productId],
+              content_type: 'product',
+              value:        price,
+              currency:     'COP'
+            });
+          }
+        }
+
+        // Astro ViewTransitions: astro:page-load se dispara al cargar cada página
+        document.addEventListener('astro:page-load', fireViewContent);
+
+        // Fallback: si no hay ViewTransitions, disparar en DOMContentLoaded
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', fireViewContent);
+        } else {
+          fireViewContent();
+        }
+      })();
+    </script>
+  )
+}
+{product && (
+  <script
+    is:inline
+    data-product-id={String(product.id)}
+    data-product-price={String(product.price ?? product.regular_price ?? '0')}
+    data-product-name={product.name}
+    id="ga4-view-item"
+  >
+    (function () {
+      function fireViewItem() {
+        var el = document.getElementById('ga4-view-item');
+        if (!el) return;
+        var productId = el.getAttribute('data-product-id');
+        var productName = el.getAttribute('data-product-name');
+        var price = parseFloat(el.getAttribute('data-product-price')) || 0;
+        if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+          window.gtag('event', 'view_item', {
+            currency: 'COP',
+            value: price,
+            items: [{ item_id: productId, item_name: productName, price: price, quantity: 1 }]
+          });
+        }
+      }
+      document.addEventListener('astro:page-load', fireViewItem);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fireViewItem);
+      } else {
+        fireViewItem();
+      }
+    })();
+  </script>
+)}

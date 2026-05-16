@@ -45,3 +45,6 @@ debug-auth.js
 !vercel.json
 !menu.json
 !cornwall_data.json
+
+# Scratch directory for temporary scripts
+scratch/

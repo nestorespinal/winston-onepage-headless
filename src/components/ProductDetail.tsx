@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { getOptimizedUrl, getImageSrcSet } from '../utils/image';
 import ProductCard from './ProductCard';
 import { addToCart } from '../store/cart';
 import { redirectToCheckout } from '../utils/checkout';
@@ -104,7 +105,7 @@ export default function ProductDetail({ initialProduct }: Props) {
     const fetchFullProduct = async () => {
       setIsFetchingVariations(true);
       try {
-        const res = await fetch(`/api/products?slug=${product.slug}&t=${Date.now()}`);
+        const res = await fetch(`/api/products?slug=${product.slug}`);
         if (res.ok) {
           const fullData = await res.json();
           if (fullData && fullData.variations) {
@@ -133,7 +134,7 @@ export default function ProductDetail({ initialProduct }: Props) {
     setFbtVariations(prev => {
       const current = prev[productId];
       if (current?.color === color && current?.size === size && current?.variationId === variationId) return prev;
-      
+
       return {
         ...prev,
         [productId]: { color, size, variationId }
@@ -155,7 +156,7 @@ export default function ProductDetail({ initialProduct }: Props) {
     );
   }, []);
 
-  const sizeAttribute = useMemo(() => 
+  const sizeAttribute = useMemo(() =>
     currentProduct.attributes?.find(attr =>
       attr.name.toLowerCase().includes('talla') ||
       attr.name.toLowerCase().includes('tamano') ||
@@ -168,7 +169,7 @@ export default function ProductDetail({ initialProduct }: Props) {
   // Ordenar las tallas numéricamente o por orden de ropa (XS, S, M, L, XL, XXL)
   const sortedSizeTerms = useMemo(() => {
     if (!sizeAttribute) return [];
-    
+
     const sizeOrder: Record<string, number> = {
       'xs': 1, 's': 2, 'm': 3, 'l': 4, 'xl': 5, 'xxl': 6, '2xl': 6, 'xxxl': 7, '3xl': 7
     };
@@ -178,7 +179,7 @@ export default function ProductDetail({ initialProduct }: Props) {
       const nameB = b.name.toLowerCase().trim();
 
       if (sizeOrder[nameA] && sizeOrder[nameB]) return sizeOrder[nameA] - sizeOrder[nameB];
-      
+
       const valA = parseFloat(nameA.replace(',', '.'));
       const valB = parseFloat(nameB.replace(',', '.'));
 
@@ -189,9 +190,9 @@ export default function ProductDetail({ initialProduct }: Props) {
 
   const hasSize = !!sizeAttribute;
 
-  const colorAttribute = useMemo(() => 
+  const colorAttribute = useMemo(() =>
     currentProduct.attributes?.find(attr =>
-      attr.name.toLowerCase().includes('color') || 
+      attr.name.toLowerCase().includes('color') ||
       attr.name.toLowerCase().includes('selecciona-el-color') ||
       attr.slug?.includes('color')
     ), [currentProduct]);
@@ -239,38 +240,38 @@ export default function ProductDetail({ initialProduct }: Props) {
     if (tallaParam) setSelectedSize(tallaParam);
   }, []);
 
-    const colorSynonyms = useMemo(() => {
-        if (!selectedColor) return [];
-        const colorLower = normalizeAttr(selectedColor);
-        const synonyms: Record<string, string[]> = {
-            'negro': ['black', 'dark'],
-            'blanco': ['white', 'light'],
-            'azul': ['blue', 'navy', 'celeste', 'ocean'],
-            'rojo': ['red'],
-            'cafe': ['brown', 'marron', 'marrón', 'coffee', 'tan', 'camel', 'tabaco', 'tabac', 'cognac', 'chocolate'],
-            'miel': ['tan', 'honey', 'camel', 'arena', 'sand'],
-            'verde': ['green', 'oliva', 'olive'],
-            'gris': ['grey', 'gray', 'plata', 'silver'],
-            'vino': ['vinotinto', 'burgundy', 'wine', 'rojo', 'granate'],
-            'vinotinto': ['vino', 'burgundy', 'wine', 'rojo', 'granate'],
-            'beige': ['arena', 'sand', 'cream', 'crema', 'hueso'],
-            'camel': ['tan', 'miel', 'cafe', 'brown', 'cognac'],
-            'piel': ['cuero', 'leather', 'tan']
-        };
-        
-        // El set original incluye el slug completo
-        const results = new Set([colorLower]);
-        
-        // Intentar descomponer colores compuestos (ej: 'suede-tan' -> 'suede', 'tan')
-        const parts = selectedColor.split(/[-_\s]+/).map(p => normalizeAttr(p)).filter(p => p.length > 2);
-        parts.forEach(p => {
-            results.add(p);
-            if (synonyms[p]) synonyms[p].forEach(s => results.add(s));
-        });
-        
-        if (synonyms[colorLower]) synonyms[colorLower].forEach(s => results.add(s));
-        return Array.from(results).filter(s => s.length > 2);
-    }, [selectedColor]);
+  const colorSynonyms = useMemo(() => {
+    if (!selectedColor) return [];
+    const colorLower = normalizeAttr(selectedColor);
+    const synonyms: Record<string, string[]> = {
+      'negro': ['black', 'dark'],
+      'blanco': ['white', 'light'],
+      'azul': ['blue', 'navy', 'celeste', 'ocean'],
+      'rojo': ['red'],
+      'cafe': ['brown', 'marron', 'marrón', 'coffee', 'tan', 'camel', 'tabaco', 'tabac', 'cognac', 'chocolate'],
+      'miel': ['tan', 'honey', 'camel', 'arena', 'sand'],
+      'verde': ['green', 'oliva', 'olive'],
+      'gris': ['grey', 'gray', 'plata', 'silver'],
+      'vino': ['vinotinto', 'burgundy', 'wine', 'rojo', 'granate'],
+      'vinotinto': ['vino', 'burgundy', 'wine', 'rojo', 'granate'],
+      'beige': ['arena', 'sand', 'cream', 'crema', 'hueso'],
+      'camel': ['tan', 'miel', 'cafe', 'brown', 'cognac'],
+      'piel': ['cuero', 'leather', 'tan']
+    };
+
+    // El set original incluye el slug completo
+    const results = new Set([colorLower]);
+
+    // Intentar descomponer colores compuestos (ej: 'suede-tan' -> 'suede', 'tan')
+    const parts = selectedColor.split(/[-_\s]+/).map(p => normalizeAttr(p)).filter(p => p.length > 2);
+    parts.forEach(p => {
+      results.add(p);
+      if (synonyms[p]) synonyms[p].forEach(s => results.add(s));
+    });
+
+    if (synonyms[colorLower]) synonyms[colorLower].forEach(s => results.add(s));
+    return Array.from(results).filter(s => s.length > 2);
+  }, [selectedColor]);
 
   const mainCategory = useMemo(() => {
     if (!product.categories || product.categories.length === 0) return null;
@@ -294,15 +295,15 @@ export default function ProductDetail({ initialProduct }: Props) {
       const vColorAttr = v.attributes?.find((a: any) => {
         const n = (a.name || "").toLowerCase();
         const sid = (a.id || "").toString().toLowerCase();
-        return n.includes('color') || n.includes('pa_color') || 
-               n.includes('selecciona-el-color') || sid.includes('color');
+        return n.includes('color') || n.includes('pa_color') ||
+          n.includes('selecciona-el-color') || sid.includes('color');
       });
       const vSizeAttr = v.attributes?.find((a: any) => {
         const n = (a.name || "").toLowerCase();
         const sid = (a.id || "").toString().toLowerCase();
-        return n.includes('talla') || n.includes('size') || n.includes('tamano') || 
-               n.includes('tamaño') || n.includes('pa_talla') || 
-               n.includes('selecciona-una-talla') || sid.includes('talla') || sid.includes('size');
+        return n.includes('talla') || n.includes('size') || n.includes('tamano') ||
+          n.includes('tamaño') || n.includes('pa_talla') ||
+          n.includes('selecciona-una-talla') || sid.includes('talla') || sid.includes('size');
       });
 
       const vColorRaw = vColorAttr?.value || vColorAttr?.option || vColorAttr?.text || '';
@@ -312,11 +313,11 @@ export default function ProductDetail({ initialProduct }: Props) {
       const vSize = normalizeAttr(vSizeRaw);
 
       // Match exacto o inteligente (fuzzy/synonyms)
-      const matchesColor = !selectedColor || vColor === targetColor || vColorRaw === '' || 
-                          vColor.includes(targetColor) || targetColor.includes(vColor) ||
-                          (targetColor === 'vinotinto' && vColor === 'vino') ||
-                          (targetColor === 'vino' && vColor === 'vinotinto');
-      
+      const matchesColor = !selectedColor || vColor === targetColor || vColorRaw === '' ||
+        vColor.includes(targetColor) || targetColor.includes(vColor) ||
+        (targetColor === 'vinotinto' && vColor === 'vino') ||
+        (targetColor === 'vino' && vColor === 'vinotinto');
+
       const matchesSize = !selectedSize || vSize === targetSize || vSizeRaw === '';
 
       return matchesColor && matchesSize;
@@ -336,66 +337,66 @@ export default function ProductDetail({ initialProduct }: Props) {
     // --- 1. Obtener imágenes de la Variación (API + Mapas) ---
     let varImages: any[] = [];
     if (currentProduct.variation_images_map) {
-        const colorSlugNormalized = normalizeAttr(selectedColor);
-        const colorNameNormalized = normalizeAttr(colorName);
-        const searchTerms = new Set([
-            colorSlugNormalized, 
-            colorNameNormalized, 
-            ...colorSynonyms.map(s => normalizeAttr(s))
-        ].filter(s => s && s.length > 2));
-        
-        Object.keys(currentProduct.variation_images_map).forEach(key => {
-            const k = normalizeAttr(key);
-            const isMatch = Array.from(searchTerms).some(term => 
-                k === term || k.includes(term) || term.includes(k)
-            );
-            
-            if (isMatch) {
-                const imagesForKey = currentProduct.variation_images_map![key];
-                if (imagesForKey && Array.isArray(imagesForKey)) {
-                    varImages = [...varImages, ...imagesForKey];
-                }
-            }
-        });
+      const colorSlugNormalized = normalizeAttr(selectedColor);
+      const colorNameNormalized = normalizeAttr(colorName);
+      const searchTerms = new Set([
+        colorSlugNormalized,
+        colorNameNormalized,
+        ...colorSynonyms.map(s => normalizeAttr(s))
+      ].filter(s => s && s.length > 2));
+
+      Object.keys(currentProduct.variation_images_map).forEach(key => {
+        const k = normalizeAttr(key);
+        const isMatch = Array.from(searchTerms).some(term =>
+          k === term || k.includes(term) || term.includes(k)
+        );
+
+        if (isMatch) {
+          const imagesForKey = currentProduct.variation_images_map![key];
+          if (imagesForKey && Array.isArray(imagesForKey)) {
+            varImages = [...varImages, ...imagesForKey];
+          }
+        }
+      });
     }
 
     const allColorTerms = colorAttribute?.terms.map(t => ({
-        slug: t.slug,
-        name: t.name,
-        nSlug: normalizeAttr(t.slug),
-        nName: normalizeAttr(t.name)
+      slug: t.slug,
+      name: t.name,
+      nSlug: normalizeAttr(t.slug),
+      nName: normalizeAttr(t.name)
     })) || [];
 
     const galleryMatches = currentProduct.images.filter((img: { src: string; alt: string; name: string }) => {
       const src = (img.src || "").toLowerCase();
       const alt = (img.alt || "").toLowerCase();
       const name = (img.name || "").toLowerCase();
-      
+
       const isMatch = (text: string, target: string) => {
-          if (!target || target.length < 3) return false;
-          const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const regex = new RegExp(`(^|[-_\\s/])${escaped}([-_\\s.]|$)`, 'i');
-          return regex.test(text);
+        if (!target || target.length < 3) return false;
+        const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(^|[-_\\s/])${escaped}([-_\\s.]|$)`, 'i');
+        return regex.test(text);
       };
 
       // 1. Verificar si el término seleccionado hace match
-      const selectedMatches = isMatch(src, colorSlug) || isMatch(alt, colorSlug) || 
-                              (colorName && (isMatch(src, colorName) || isMatch(alt, colorName))) ||
-                              colorSynonyms.some(s => isMatch(src, s) || isMatch(alt, s));
+      const selectedMatches = isMatch(src, colorSlug) || isMatch(alt, colorSlug) ||
+        (colorName && (isMatch(src, colorName) || isMatch(alt, colorName))) ||
+        colorSynonyms.some(s => isMatch(src, s) || isMatch(alt, s));
 
       if (!selectedMatches) return false;
 
       // 2. EXCLUSIÓN: Si el término seleccionado hace match, pero existe OTRO término del producto 
       // que es más largo/específico y TAMBIÉN hace match, descartamos esta imagen por ser de otro color.
       const hasBetterMatch = allColorTerms.some(term => {
-          if (term.slug === selectedColor) return false;
-          const termMatches = isMatch(src, term.slug) || isMatch(alt, term.slug) || 
-                             (term.name && (isMatch(src, term.name) || isMatch(alt, term.name)));
-          
-          if (termMatches) {
-              return term.slug.length > colorSlug.length || (term.name && term.name.length > colorName.length);
-          }
-          return false;
+        if (term.slug === selectedColor) return false;
+        const termMatches = isMatch(src, term.slug) || isMatch(alt, term.slug) ||
+          (term.name && (isMatch(src, term.name) || isMatch(alt, term.name)));
+
+        if (termMatches) {
+          return term.slug.length > colorSlug.length || (term.name && term.name.length > colorName.length);
+        }
+        return false;
       });
 
       return !hasBetterMatch;
@@ -403,109 +404,109 @@ export default function ProductDetail({ initialProduct }: Props) {
 
     // --- COMBINACIÓN FINAL ---
     const combined: any[] = [];
-    
+
     // 1. PRIORIDAD MÁXIMA: Imagen principal de la variación seleccionada
     if (selectedVariation?.image?.src) {
-        combined.push({
-            id: selectedVariation.image.id,
-            src: selectedVariation.image.src,
-            alt: selectedVariation.image.alt || currentProduct.name
-        });
+      combined.push({
+        id: selectedVariation.image.id,
+        src: selectedVariation.image.src,
+        alt: selectedVariation.image.alt || currentProduct.name
+      });
     }
 
     // 2. PRIORIDAD MEDIA: Todas las fotos confirmadas de esa variante (Mapas + Galería)
     [...varImages, ...galleryMatches].forEach((img: any) => {
-        if (!combined.some(c => c.src === img.src)) combined.push(img);
+      if (!combined.some(c => c.src === img.src)) combined.push(img);
     });
 
     // 3. PRIORIDAD BAJA: Predicción Sintética (Solo si no hay NADA real)
     if (combined.length === 0 && currentProduct.images.length > 0 && colorAttribute && !failedSyntheticColors.includes(selectedColor)) {
-        const baseImg = currentProduct.images[0];
-        const baseSrc = baseImg.src;
+      const baseImg = currentProduct.images[0];
+      const baseSrc = baseImg.src;
 
-        const getSynonyms = (c: string) => {
-            const ns = normalizeAttr(c);
-            const dict: Record<string, string[]> = {
-                'negro': ['black', 'dark'],
-                'blanco': ['white', 'light'],
-                'azul': ['blue', 'navy', 'celeste', 'ocean'],
-                'rojo': ['red'],
-                'cafe': ['brown', 'marron', 'marrón', 'coffee', 'miel', 'tan', 'camel', 'tabaco', 'tabac', 'cognac', 'chocolate'],
-                'miel': ['tan', 'honey', 'camel', 'arena', 'sand'],
-                'verde': ['green', 'oliva', 'olive'],
-                'gris': ['grey', 'gray', 'plata', 'silver'],
-                'vino': ['vinotinto', 'burgundy', 'wine', 'rojo', 'granate'],
-                'vinotinto': ['vino', 'burgundy', 'wine', 'rojo', 'granate'],
-                'beige': ['arena', 'sand', 'cream', 'crema', 'hueso'],
-                'camel': ['tan', 'miel', 'cafe', 'brown', 'cognac'],
-                'piel': ['cuero', 'leather', 'tan']
-            };
-            return [ns, ...(dict[ns] || [])].filter(x => x.length > 2);
+      const getSynonyms = (c: string) => {
+        const ns = normalizeAttr(c);
+        const dict: Record<string, string[]> = {
+          'negro': ['black', 'dark'],
+          'blanco': ['white', 'light'],
+          'azul': ['blue', 'navy', 'celeste', 'ocean'],
+          'rojo': ['red'],
+          'cafe': ['brown', 'marron', 'marrón', 'coffee', 'miel', 'tan', 'camel', 'tabaco', 'tabac', 'cognac', 'chocolate'],
+          'miel': ['tan', 'honey', 'camel', 'arena', 'sand'],
+          'verde': ['green', 'oliva', 'olive'],
+          'gris': ['grey', 'gray', 'plata', 'silver'],
+          'vino': ['vinotinto', 'burgundy', 'wine', 'rojo', 'granate'],
+          'vinotinto': ['vino', 'burgundy', 'wine', 'rojo', 'granate'],
+          'beige': ['arena', 'sand', 'cream', 'crema', 'hueso'],
+          'camel': ['tan', 'miel', 'cafe', 'brown', 'cognac'],
+          'piel': ['cuero', 'leather', 'tan']
         };
+        return [ns, ...(dict[ns] || [])].filter(x => x.length > 2);
+      };
 
-        // Detectar qué color tiene la imagen base
-        let colorInUrl = colorAttribute.terms.find((t: any) => {
+      // Detectar qué color tiene la imagen base
+      let colorInUrl = colorAttribute.terms.find((t: any) => {
+        const targetSyns = getSynonyms(t.slug);
+        const targetNames = getSynonyms(t.name);
+        const s = normalizeAttr(baseSrc);
+        return targetSyns.some(syn => s.includes(syn)) || targetNames.some(syn => s.includes(syn));
+      });
+
+      if (!colorInUrl) {
+        for (const img of currentProduct.images) {
+          const found = colorAttribute.terms.find((t: any) => {
             const targetSyns = getSynonyms(t.slug);
             const targetNames = getSynonyms(t.name);
-            const s = normalizeAttr(baseSrc);
+            const s = normalizeAttr(img.src);
             return targetSyns.some(syn => s.includes(syn)) || targetNames.some(syn => s.includes(syn));
-        });
+          });
+          if (found) { colorInUrl = found; break; }
+        }
+      }
 
-        if (!colorInUrl) {
-            for (const img of currentProduct.images) {
-                const found = colorAttribute.terms.find((t: any) => {
-                    const targetSyns = getSynonyms(t.slug);
-                    const targetNames = getSynonyms(t.name);
-                    const s = normalizeAttr(img.src);
-                    return targetSyns.some(syn => s.includes(syn)) || targetNames.some(syn => s.includes(syn));
-                });
-                if (found) { colorInUrl = found; break; }
-            }
+      if (colorInUrl) {
+        const targetSyns = getSynonyms(colorInUrl.slug);
+        const targetNames = getSynonyms(colorInUrl.name);
+        let match = null;
+        for (const syn of [...targetSyns, ...targetNames]) {
+          const m = baseSrc.match(new RegExp(`[-_]${syn}`, 'i')) || baseSrc.match(new RegExp(syn, 'i'));
+          if (m) { match = m; break; }
         }
 
-        if (colorInUrl) {
-            const targetSyns = getSynonyms(colorInUrl.slug);
-            const targetNames = getSynonyms(colorInUrl.name);
-            let match = null;
-            for (const syn of [...targetSyns, ...targetNames]) {
-                const m = baseSrc.match(new RegExp(`[-_]${syn}`, 'i')) || baseSrc.match(new RegExp(syn, 'i'));
-                if (m) { match = m; break; }
+        if (match) {
+          const matchedText = match[0];
+          const cleanMatchedText = matchedText.replace(/^[-_]/, '');
+          const isCapitalized = cleanMatchedText[0] && cleanMatchedText[0] === cleanMatchedText[0].toUpperCase();
+
+          let replacementCore = selectedColor;
+          if (selectedColor === 'vinotinto' && cleanMatchedText.toLowerCase() === 'vino') {
+            replacementCore = isCapitalized ? 'Vino' : 'vino';
+          } else if (isCapitalized) {
+            replacementCore = selectedColor.charAt(0).toUpperCase() + selectedColor.slice(1).toLowerCase();
+          }
+          const replacement = matchedText.replace(cleanMatchedText, replacementCore);
+
+          try {
+            const regex = new RegExp(matchedText, 'g');
+            currentProduct.images.forEach((img: any) => {
+              const newSrc = img.src.replace(regex, replacement);
+              if (newSrc !== img.src) {
+                combined.push({ ...img, id: -999 - img.id, isSynthetic: true, src: newSrc, alt: `${currentProduct.name} ${selectedColor}` });
+              }
+            });
+            if (combined.length === 0) {
+              const newSrc = baseSrc.replace(regex, replacement);
+              if (newSrc !== baseSrc) combined.push({ ...baseImg, id: -999, isSynthetic: true, src: newSrc, alt: `${currentProduct.name} ${selectedColor}` });
             }
-
-            if (match) {
-                const matchedText = match[0];
-                const cleanMatchedText = matchedText.replace(/^[-_]/, '');
-                const isCapitalized = cleanMatchedText[0] && cleanMatchedText[0] === cleanMatchedText[0].toUpperCase();
-
-                let replacementCore = selectedColor;
-                if (selectedColor === 'vinotinto' && cleanMatchedText.toLowerCase() === 'vino') {
-                    replacementCore = isCapitalized ? 'Vino' : 'vino';
-                } else if (isCapitalized) {
-                    replacementCore = selectedColor.charAt(0).toUpperCase() + selectedColor.slice(1).toLowerCase();
-                }
-                const replacement = matchedText.replace(cleanMatchedText, replacementCore);
-
-                try {
-                    const regex = new RegExp(matchedText, 'g');
-                    currentProduct.images.forEach((img: any) => {
-                        const newSrc = img.src.replace(regex, replacement);
-                        if (newSrc !== img.src) {
-                            combined.push({ ...img, id: -999 - img.id, isSynthetic: true, src: newSrc, alt: `${currentProduct.name} ${selectedColor}` });
-                        }
-                    });
-                    if (combined.length === 0) {
-                        const newSrc = baseSrc.replace(regex, replacement);
-                        if (newSrc !== baseSrc) combined.push({ ...baseImg, id: -999, isSynthetic: true, src: newSrc, alt: `${currentProduct.name} ${selectedColor}` });
-                    }
-                } catch (e) { }
-            }
+          } catch (e) { }
         }
+      }
     }
 
     // 4. FALLBACK FINAL: Si el filtro de color no devolvió NADA (ni real ni sintético),
     // mostramos la foto principal del producto para no dejar la galería vacía.
     if (combined.length === 0 && currentProduct.images.length > 0) {
-        return [currentProduct.images[0]];
+      return [currentProduct.images[0]];
     }
 
     return combined;
@@ -626,8 +627,8 @@ export default function ProductDetail({ initialProduct }: Props) {
   useEffect(() => {
     setActiveImageIndex(0);
     if (galleryRef.current) {
-        galleryRef.current.scrollLeft = 0;
-        galleryRef.current.scrollTop = 0; // Fix para desktop (scroll vertical)
+      galleryRef.current.scrollLeft = 0;
+      galleryRef.current.scrollTop = 0; // Fix para desktop (scroll vertical)
     }
   }, [filteredImages]);
 
@@ -667,20 +668,20 @@ export default function ProductDetail({ initialProduct }: Props) {
       const vColorAttr = variation.attributes.find(a => {
         const n = (a.name || "").toLowerCase();
         const sid = (a.id || "").toString().toLowerCase();
-        return n.includes('color') || n.includes('pa_color') || 
-               n.includes('selecciona-el-color') || sid.includes('color');
+        return n.includes('color') || n.includes('pa_color') ||
+          n.includes('selecciona-el-color') || sid.includes('color');
       });
       const vSizeAttr = variation.attributes.find(a => {
         const n = (a.name || "").toLowerCase();
         const sid = (a.id || "").toString().toLowerCase();
-        return n.includes('talla') || n.includes('size') || n.includes('tamano') || 
-               n.includes('tamaño') || n.includes('pa_talla') || 
-               n.includes('selecciona-una-talla') || sid.includes('talla') || sid.includes('size');
+        return n.includes('talla') || n.includes('size') || n.includes('tamano') ||
+          n.includes('tamaño') || n.includes('pa_talla') ||
+          n.includes('selecciona-una-talla') || sid.includes('talla') || sid.includes('size');
       });
 
       const vColorRaw = vColorAttr?.value || vColorAttr?.option || '';
       const vSizeRaw = vSizeAttr?.value || vSizeAttr?.option || '';
-      
+
       const vColor = normalizeAttr(vColorRaw);
       const vSize = normalizeAttr(vSizeRaw);
 
@@ -690,8 +691,8 @@ export default function ProductDetail({ initialProduct }: Props) {
 
       // Crucial: También verificar stock_status de la variación
       // Aceptamos 'instock' o si tiene cantidad positiva si manage_stock es true
-      const isVariationInStock = variation.stock_status === 'instock' || 
-                                (variation.manage_stock && variation.stock_quantity && variation.stock_quantity > 0);
+      const isVariationInStock = variation.stock_status === 'instock' ||
+        (variation.manage_stock && variation.stock_quantity && variation.stock_quantity > 0);
 
       return matchesColor && matchesSize && isVariationInStock;
     });
@@ -768,6 +769,22 @@ export default function ProductDetail({ initialProduct }: Props) {
       filteredImages[0]?.src || product.images[0]?.src
     );
 
+    // GA4 + Meta add_to_cart
+    const price = parseFloat(String(currentProduct?.prices?.price || currentProduct?.price || '0')) || 0;
+    if (typeof window !== 'undefined') {
+      if (typeof (window as any).gtag === 'function') {
+        (window as any).gtag('event', 'add_to_cart', {
+          currency: 'COP', value: price,
+          items: [{ item_id: String(currentProduct.id), item_name: currentProduct.name, price, quantity: 1 }]
+        });
+      }
+      if (typeof (window as any).fbq === 'function') {
+        (window as any).fbq('track', 'AddToCart', {
+          content_ids: [String(currentProduct.id)], content_type: 'product', value: price, currency: 'COP'
+        });
+      }
+    }
+
     return true;
   };
 
@@ -827,15 +844,25 @@ export default function ProductDetail({ initialProduct }: Props) {
               <div key={img.id || index} className="gallery-item">
                 <picture>
                   <img
-                    src={img.src}
+                    src={getOptimizedUrl(img.src, { width: 1200 })}
+                    srcSet={getImageSrcSet(img.src, [600, 900, 1200])}
+                    sizes="(max-width: 768px) 100vw, 50vw"
                     alt={img.alt || product.name}
                     className="reveal-on-scroll is-visible cursor-zoom"
                     loading={index === 0 ? "eager" : "lazy"}
+                    decoding={index === 0 ? "sync" : "async"}
                     onClick={() => openLightbox(index)}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.onerror = null;
-                      const currentSrc = target.src;
+                      const currentSrc = target.getAttribute('src') || '';
+
+                      // Si falló el optimizado, intentar con el original
+                      if (currentSrc.includes('/_image')) {
+                        target.src = img.src;
+                        target.removeAttribute('srcset');
+                        return;
+                      }
 
                       // 1. Si es .webp, quitar .webp para volver al formato original (ej: .jpg.webp → .jpg)
                       if (currentSrc.toLowerCase().endsWith('.webp')) {
@@ -878,7 +905,7 @@ export default function ProductDetail({ initialProduct }: Props) {
               // 2. Intento de adivinar el nombre de la foto (WooCommerce suele usar sufijos numéricos)
               const match1 = firstImg.src.match(/([-_])1(?:-e\d+)?(\.(?:jpg|jpeg|png|webp))$/i);
               let guessedSrc = "";
-              
+
               if (match1) {
                 // Si la primera imagen termina en -1, reemplazamos por -num
                 guessedSrc = firstImg.src.replace(/([-_])1(?:-e\d+)?(\.(?:jpg|jpeg|png|webp))$/i, `$1${num}$2`);
@@ -895,10 +922,13 @@ export default function ProductDetail({ initialProduct }: Props) {
                 <div key={`guessed-${num}`} className="gallery-item">
                   <picture>
                     <img
-                      src={guessedSrc}
+                      src={getOptimizedUrl(guessedSrc, { width: 1200 })}
+                      srcSet={getImageSrcSet(guessedSrc, [600, 900, 1200])}
+                      sizes="(max-width: 768px) 100vw, 50vw"
                       alt={`${product.name} vista ${num}`}
                       className="reveal-on-scroll is-visible cursor-zoom"
                       loading="lazy"
+                      decoding="async"
                       onClick={() => {
                         const verifiedIndex = verifiedGuessedImages.indexOf(guessedSrc);
                         if (verifiedIndex !== -1) {
@@ -907,8 +937,17 @@ export default function ProductDetail({ initialProduct }: Props) {
                       }}
                       onLoad={() => handleGuessedImageLoad(guessedSrc)}
                       onError={(e) => {
-                        // Si la foto no existe en WooCommerce, ocultamos este slide
                         const target = e.target as HTMLImageElement;
+                        const currentSrc = target.getAttribute('src') || '';
+
+                        // Si falló el optimizado, intentar con el original (para que onLoad/onError funcione)
+                        if (currentSrc.includes('/_image')) {
+                          target.src = guessedSrc;
+                          target.removeAttribute('srcset');
+                          return;
+                        }
+
+                        // Si la foto no existe en WooCommerce, ocultamos este slide
                         const container = target.closest('.gallery-item') as HTMLElement;
                         if (container) container.style.display = 'none';
                       }}
@@ -974,16 +1013,16 @@ export default function ProductDetail({ initialProduct }: Props) {
 
               <div className="product-price-container">
                 {selectedVariation ? (
-                   <div className="price-wrapper">
-                     {Number(selectedVariation.regular_price || 0) > Number(selectedVariation.price || 0) && (
-                       <span className="old-price">{formatPrice(selectedVariation.regular_price)}</span>
-                     )}
-                     <span className="sale-price highlight">
-                        {selectedVariation.price && Number(selectedVariation.price) > 0 
-                          ? formatPrice(selectedVariation.price) 
-                          : formatPrice(product.prices.price)}
-                     </span>
-                   </div>
+                  <div className="price-wrapper">
+                    {Number(selectedVariation.regular_price || 0) > Number(selectedVariation.price || 0) && (
+                      <span className="old-price">{formatPrice(selectedVariation.regular_price)}</span>
+                    )}
+                    <span className="sale-price highlight">
+                      {selectedVariation.price && Number(selectedVariation.price) > 0
+                        ? formatPrice(selectedVariation.price)
+                        : formatPrice(product.prices.price)}
+                    </span>
+                  </div>
                 ) : product.on_sale ? (
                   <div className="price-wrapper">
                     {Number(product.prices.regular_price || 0) > Number(product.prices.price || 0) && (
@@ -1005,7 +1044,7 @@ export default function ProductDetail({ initialProduct }: Props) {
 
                   return (
                     <div className="selector-group">
-                    <label>Color: <strong>{colorAttribute.terms.find(t => normalizeAttr(t.slug) === normalizeAttr(selectedColor) || normalizeAttr(t.name) === normalizeAttr(selectedColor))?.name || ''}</strong></label>
+                      <label>Color: <strong>{colorAttribute.terms.find(t => normalizeAttr(t.slug) === normalizeAttr(selectedColor) || normalizeAttr(t.name) === normalizeAttr(selectedColor))?.name || ''}</strong></label>
                       <div className="color-options">
                         {terms.map((term: any) => {
                           const isAvailable = isCombinationAvailable(term.slug, null);
@@ -1089,9 +1128,9 @@ export default function ProductDetail({ initialProduct }: Props) {
                     onClick={handleAddToCart}
                     disabled={isOutOfStock}
                   >
-                    {isOutOfStock ? 'Producto Agotado' : 
-                     (!selectedColor || (hasSize && !selectedSize)) ? 'Selecciona Opciones' : 
-                     'Añadir al Carrito'}
+                    {isOutOfStock ? 'Producto Agotado' :
+                      (!selectedColor || (hasSize && !selectedSize)) ? 'Selecciona Opciones' :
+                        'Añadir al Carrito'}
                   </button>
                   <button
                     className={`btn-action btn-outline-thick ${isOutOfStock ? 'disabled' : ''}`}
@@ -1103,9 +1142,9 @@ export default function ProductDetail({ initialProduct }: Props) {
                     }}
                     disabled={isOutOfStock}
                   >
-                    {isOutOfStock ? 'Sin Stock' : 
-                     (!selectedColor || (hasSize && !selectedSize)) ? 'Selecciona Opciones' : 
-                     'Comprar Ahora'}
+                    {isOutOfStock ? 'Sin Stock' :
+                      (!selectedColor || (hasSize && !selectedSize)) ? 'Selecciona Opciones' :
+                        'Comprar Ahora'}
                   </button>
                 </div>
               </div>
@@ -1171,11 +1210,11 @@ export default function ProductDetail({ initialProduct }: Props) {
         </div>
       </div>
 
-      {/* SECCIÓN EL COMPLEMENTO IDEAL (Uso de ProductCard para consistencia) */}
+      {/* SECCIÓN COMPRADOS JUNTOS HABITUALMENTE (Uso de ProductCard para consistencia) */}
       {product.fbt_products && product.fbt_products.length > 0 && (
         <section className="fbt-new-section">
           <div className="fbt-fullwidth-container">
-            <h2 className="fbt-title-premium">El Complemento Ideal</h2>
+            <h2 className="fbt-title-premium">Combínalo con:</h2>
             <div className="fbt-bundle-grid">
               <div className="fbt-visual-row">
                 <div className="fbt-bundle-step">
@@ -2146,8 +2185,8 @@ function getColorCode(slug: string): string {
     'marron': '#6F4E37',
     'marrón': '#6F4E37'
   };
-  return colors[slug.toLowerCase()] || 
-         colors[slug.toLowerCase().replace(/-/g, '')] || 
-         colors[normalizeAttr(slug)] || 
-         '#ddd';
+  return colors[slug.toLowerCase()] ||
+    colors[slug.toLowerCase().replace(/-/g, '')] ||
+    colors[normalizeAttr(slug)] ||
+    '#ddd';
 }

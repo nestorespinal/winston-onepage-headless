@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ProductCard from './ProductCard';
 
 interface FilteredProductListProps {
@@ -184,7 +184,7 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
             setAllFetchedProducts(ssrProducts);
             setPage(1);
             setLoading(false);
-            if (ssrProducts.length < 16) setHasMore(false);
+            setHasMore(true); // Siempre asumir que hay más al inicio, por si WordPress capa a 15 en vez de 16
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -199,14 +199,16 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
     }, [allFetchedProducts, initialColorTerms, initialTallaTerms]);
 
 
-    const fetchBaseProducts = async (currentSort: any, pageNum: number, append = false) => {
+    const fetchBaseProducts = useCallback(async (currentSort: any, pageNum: number, append = false) => {
         if (!category?.id) return;
         if (append) setLoadingMore(true); else setLoading(true);
         setError(null);
-        
+
         try {
             const params = new URLSearchParams();
-            params.append('category', category.id.toString());
+            if (category.id && category.id !== 'all') {
+                params.append('category', category.id.toString());
+            }
             params.append('orderby', currentSort.orderBy);
             params.append('order', currentSort.order);
             params.append('page', pageNum.toString());
@@ -218,14 +220,18 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
 
             const data = await response.json();
             const newProducts = Array.isArray(data) ? data : [];
-            
+
             if (append) {
-                setAllFetchedProducts(prev => [...prev, ...newProducts]);
+                setAllFetchedProducts(prev => {
+                    const existingIds = new Set(prev.map((p: any) => p.id));
+                    const uniqueNew = newProducts.filter((p: any) => !existingIds.has(p.id));
+                    return [...prev, ...uniqueNew];
+                });
             } else {
                 setAllFetchedProducts(newProducts);
             }
 
-            if (newProducts.length < 16) {
+            if (newProducts.length === 0) {
                 setHasMore(false);
             } else {
                 setHasMore(true);
@@ -237,34 +243,47 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
             setLoading(false);
             setLoadingMore(false);
         }
-    };
+    }, [category?.id]);
 
-    const loadMore = () => {
+    const loadMore = useCallback(() => {
         if (loadingMore || !hasMore) return;
-        const nextPage = page + 1;
-        setPage(nextPage);
-        fetchBaseProducts(sort, nextPage, true);
-    };
 
-    // Intersection Observer for Infinite Scroll
-    const observerTarget = useRef(null);
+        setPage(prevPage => {
+            const nextPage = prevPage + 1;
+            fetchBaseProducts(sort, nextPage, true);
+            return nextPage;
+        });
+    }, [loadingMore, hasMore, sort, fetchBaseProducts]);
+
+    // Intersection Observer for Infinite Scroll - Bulletproof pattern
+    const observer = useRef<IntersectionObserver | null>(null);
+    const loadMoreRef = useRef(loadMore);
+    const targetNodeRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        const target = observerTarget.current;
-        if (!target || !hasMore) return;
+        loadMoreRef.current = loadMore;
+    }, [loadMore]);
 
-        const observer = new IntersectionObserver(
-            entries => {
-                if (entries[0].isIntersecting && hasMore && !loadingMore) {
-                    loadMore();
-                }
-            },
-            { threshold: 0.1 }
-        );
+    const observerTarget = useCallback((node: HTMLDivElement | null) => {
+        targetNodeRef.current = node;
+        if (observer.current) observer.current.disconnect();
 
-        observer.observe(target);
-        return () => observer.disconnect();
-    }, [hasMore, loadingMore, loading, page, sort]);
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) {
+                loadMoreRef.current();
+            }
+        }, { threshold: 0.1 });
+
+        if (node) observer.current.observe(node);
+    }, []);
+
+    // Re-evaluar si todavía está visible después de cargar más (evita que se atasque si la pantalla no se llena)
+    useEffect(() => {
+        if (!loadingMore && hasMore && observer.current && targetNodeRef.current) {
+            observer.current.unobserve(targetNodeRef.current);
+            observer.current.observe(targetNodeRef.current);
+        }
+    }, [loadingMore, hasMore]);
 
     const handleSortChange = (newSort: any) => {
         setSort(newSort);
@@ -497,13 +516,17 @@ const FilteredProductList: React.FC<FilteredProductListProps> = ({
                     )}
                 </div>
 
-                {/* Marcador para Infinite Scroll */}
-                <div ref={observerTarget} style={{ height: '20px', margin: '20px 0' }}>
-                    {loadingMore && (
+                {/* Marcador para Infinite Scroll y Botón Manual */}
+                <div ref={observerTarget} style={{ minHeight: '60px', margin: '20px 0', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    {loadingMore ? (
                         <div className="loading-more">
                             <span className="spinner"></span> Cargando más productos...
                         </div>
-                    )}
+                    ) : hasMore ? (
+                        <button onClick={loadMore} className="btn-outline" style={{ padding: '0.8rem 2rem', cursor: 'pointer', fontFamily: 'var(--font-titles)', textTransform: 'uppercase', fontSize: '0.85rem' }}>
+                            Cargar más productos
+                        </button>
+                    ) : null}
                 </div>
             </section>
 

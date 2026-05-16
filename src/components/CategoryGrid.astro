@@ -1,5 +1,6 @@
 ---
 import { getHomeCategories } from "../lib/categories";
+import { getOptimizedUrl, getImageSrcSet } from "../utils/image";
 
 // Obtenemos los datos dinámicos de la sección
 const data = await getHomeCategories();
@@ -30,12 +31,13 @@ const categories = data?.categories || [];
                     >
                         <div class="category-image-wrapper">
                             <img
-                                src={
-                                    category.image || "/images/placeholder.jpg"
-                                }
+                                src={getOptimizedUrl(category.image || "/images/placeholder.jpg", { width: 400 })}
+                                srcset={getImageSrcSet(category.image || "/images/placeholder.jpg", [300, 450, 600])}
+                                sizes="(max-width: 768px) 50vw, 25vw"
                                 alt={category.name}
                                 class="category-image"
                                 loading="lazy"
+                                decoding="async"
                             />
                         </div>
                         <h3 class="category-label">{category.name}</h3>
