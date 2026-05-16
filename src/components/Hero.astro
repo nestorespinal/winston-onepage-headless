@@ -2,8 +2,15 @@
 import { getHeroSlides } from "../lib/hero";
 import { getOptimizedUrl, getImageSrcSet } from "../utils/image";
 
-// Fetch dynamic data
-const result = await getHeroSlides();
+// Fetch dynamic data con timeout de 3s para no bloquear el SSR
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+const result = await withTimeout(getHeroSlides(), 3000, { slides: [], slots: 0 });
+
 const allSlides = result.slides || [];
 const slots = result.slots || 1;
 
@@ -11,164 +18,169 @@ const slots = result.slots || 1;
 const displaySlides = allSlides.slice(0, slots);
 
 // Si no hay diapositivas, usamos una por defecto para no romper el diseño
-const finalSlides =
-    displaySlides.length > 0
-        ? displaySlides
-        : [
-              {
-                  title: "Ropa y Zapatos de Cuero para Hombre",
-                  subtitle: "Hechos a mano en Colombia y diseñados para durar.",
-                  media_url: "/videos/hero-video.mp4",
-                  is_video: true,
-                  btn1_title: "Explorar Colección",
-                  btn1_link: "/tienda",
-                  btn2_title: "Conoce Nuestra Historia",
-                  btn2_link: "#nosotros",
-              },
-          ];
+const finalSlides = displaySlides.length > 0 ? displaySlides : [
+    {
+        title: "Ropa y Zapatos de Cuero para Hombre",
+        subtitle: "Hechos a mano en Colombia y diseñados para durar.",
+        media_url: "/videos/hero-video.mp4",
+        is_video: true,
+        btn1_title: "Explorar Colección",
+        btn1_link: "/tienda",
+        btn2_title: "Conoce Nuestra Historia",
+        btn2_link: "#nosotros"
+    }
+];
 ---
 
 <section id="inicio" class="hero swiper hero-slider">
     <div class="swiper-wrapper">
-        {
-            finalSlides.map((slide) => (
-                <div class="swiper-slide">
-                    <div class="image-background">
-                        {slide.is_video ? (
-                            <video
-                                class="hero-bg-image"
-                                autoplay
-                                muted
-                                playsinline
-                                preload="none"
-                                poster="/images/banner-winston-and-harry-maletas.png"
-                            >
-                                <source
-                                    src={slide.media_url}
-                                    type="video/mp4"
-                                />
-                            </video>
-                        ) : (
+        {finalSlides.map((slide) => (
+            <div class="swiper-slide">
+                <div class="image-background">
+                    {slide.is_video ? (
+                        <>
+                            {/* Solo el poster en el HTML inicial — el browser lo descarga con prioridad máxima (LCP fix) */}
                             <img
-                                src={getOptimizedUrl(slide.media_url, {
-                                    width: 1920,
-                                })}
-                                srcset={getImageSrcSet(
-                                    slide.media_url,
-                                    [800, 1200, 1920]
-                                )}
-                                sizes="100vw"
-                                class="hero-bg-image"
-                                alt={slide.title}
+                                src="/images/banner-winston-and-harry-maletas.webp"
+                                class="hero-bg-image hero-poster"
+                                alt="Winston & Harry — Ropa y zapatos de cuero para hombre"
+                                fetchpriority="high"
                                 loading="eager"
                                 decoding="sync"
+                                width="1920"
+                                height="1080"
+                                data-video-src={slide.media_url}
                             />
-                        )}
-                        <div class="overlay" />
-                    </div>
+                            {/* El <video> lo inyecta JS después del window load — NO bloquea LCP */}
+                        </>
+                    ) : (
+                        <img 
+                            src={getOptimizedUrl(slide.media_url, { width: 1920 })} 
+                            srcset={getImageSrcSet(slide.media_url, [800, 1200, 1920])}
+                            sizes="100vw"
+                            class="hero-bg-image" 
+                            alt={slide.title}
+                            loading="eager"
+                            fetchpriority="high"
+                            decoding="sync"
+                        />
+                    )}
+                    <div class="overlay"></div>
+                </div>
 
-                    <div class="hero-content">
-                        <h1 class="hero-title" set:html={slide.title} />
-                        <p class="hero-subtitle" set:html={slide.subtitle} />
-                        <div class="hero-actions">
-                            {slide.btn1_title && (
-                                <a
-                                    href={slide.btn1_link}
-                                    class="btn-primary"
-                                    set:html={slide.btn1_title}
-                                />
-                            )}
-                            {slide.btn2_title && (
-                                <a
-                                    href={slide.btn2_link}
-                                    class="btn-secondary"
-                                    set:html={slide.btn2_title}
-                                />
-                            )}
-                        </div>
+                <div class="hero-content">
+                    <h1 class="hero-title" set:html={slide.title}></h1>
+                    <p class="hero-subtitle" set:html={slide.subtitle}></p>
+                    <div class="hero-actions">
+                        {slide.btn1_title && (
+                            <a href={slide.btn1_link} class="btn-primary" set:html={slide.btn1_title}></a>
+                        )}
+                        {slide.btn2_title && (
+                            <a href={slide.btn2_link} class="btn-secondary" set:html={slide.btn2_title}></a>
+                        )}
                     </div>
                 </div>
-            ))
-        }
+            </div>
+        ))}
     </div>
-
+    
     <!-- Controles del Slider -->
     <div class="swiper-pagination"></div>
 </section>
 
-<!-- Swiper dependencies -->
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
-    media="print"
-    onload="this.media='all'"
-/>
-<script
-    is:inline
-    defer
-    src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"
-></script>
+<!-- Swiper CSS: self-hosted en Vercel CDN (más rápido que JSDelivr en PSI) -->
+<link rel="stylesheet" href="/styles/swiper-bundle.min.css" />
+<!-- Swiper JS: diferido desde CDN, no bloquea el hilo principal -->
+<script defer src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
 <script is:inline>
-    function initHeroSlider() {
-        const swiperEl = document.querySelector(".hero-slider");
-        if (!swiperEl) return;
+    // ─── Inyectar el video DESPUÉS de window.load para no bloquear LCP ──────────
+    function injectHeroVideo() {
+        const poster = document.querySelector('.hero-poster[data-video-src]');
+        if (!poster) return;
 
-        const swiper = new Swiper(".hero-slider", {
-            effect: "fade",
-            fadeEffect: {
-                crossFade: true,
-            },
+        const videoSrc = poster.getAttribute('data-video-src');
+        if (!videoSrc) return;
+
+        const container = poster.parentElement; // .image-background
+
+        // Crear el elemento video dinámicamente
+        const video = document.createElement('video');
+        video.className = 'hero-bg-image hero-video-layer';
+        video.autoplay = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        video.style.opacity = '0'; // empieza invisible
+
+        const source = document.createElement('source');
+        source.src = videoSrc;
+        source.type = 'video/mp4';
+        video.appendChild(source);
+
+        container.appendChild(video);
+        video.load();
+        video.play().catch(() => {});
+
+        // Crossfade: mostrar video, ocultar poster
+        const revealVideo = () => {
+            video.style.opacity = '1';
+            setTimeout(() => { poster.style.opacity = '0'; }, 400);
+        };
+
+        if (video.readyState >= 3) {
+            revealVideo();
+        } else {
+            video.addEventListener('canplay', revealVideo, { once: true });
+        }
+
+        // Cuando el video termina, restaurar poster y continuar Swiper
+        video.onended = () => {
+            poster.style.opacity = '1';
+            video.style.opacity = '0';
+            const swiperEl = document.querySelector('.hero-slider');
+            if (swiperEl?._swiper) {
+                setTimeout(() => {
+                    swiperEl._swiper.slideNext();
+                    swiperEl._swiper.autoplay.start();
+                }, 600);
+            }
+        };
+    }
+
+    // ─── Inicializar Swiper ───────────────────────────────────────────────────
+    function initHeroSlider() {
+        if (typeof Swiper === 'undefined') {
+            setTimeout(initHeroSlider, 100);
+            return;
+        }
+
+        const swiperEl = document.querySelector('.hero-slider');
+        if (!swiperEl) return;
+        if (swiperEl._swiperInit) return;
+        swiperEl._swiperInit = true;
+
+        const swiper = new Swiper('.hero-slider', {
+            effect: 'fade',
+            fadeEffect: { crossFade: true },
             loop: true,
             speed: 1500,
-            autoplay: {
-                delay: 6000,
-                disableOnInteraction: false,
-            },
-            pagination: {
-                el: ".swiper-pagination",
-                clickable: true,
-            },
-            on: {
-                init: function () {
-                    checkVideo(this);
-                },
-                slideChange: function () {
-                    checkVideo(this);
-                },
-            },
+            autoplay: { delay: 6000, disableOnInteraction: false },
+            pagination: { el: '.swiper-pagination', clickable: true },
         });
 
-        function checkVideo(instance) {
-            const activeSlide = instance.slides[instance.activeIndex];
-            const video = activeSlide?.querySelector("video");
+        swiperEl._swiper = swiper;
 
-            if (video) {
-                // Si hay video, detenemos el autoplay de Swiper
-                instance.autoplay.stop();
-
-                // Nos aseguramos de que el video empiece desde el inicio
-                video.currentTime = 0;
-                video.play().catch(() => {});
-
-                // Cuando el video termine, pasamos al siguiente slide y reactivamos autoplay
-                video.onended = () => {
-                    instance.slideNext();
-                    instance.autoplay.start();
-                };
-            } else {
-                // Si es imagen, nos aseguramos de que el autoplay esté activo
-                instance.autoplay.start();
-            }
+        // Inyectar video después de que la página esté completamente cargada
+        if (document.readyState === 'complete') {
+            injectHeroVideo();
+        } else {
+            window.addEventListener('load', injectHeroVideo, { once: true });
         }
     }
 
-    // Inicializar en carga y en transiciones de página
-    document.addEventListener("astro:page-load", initHeroSlider);
-    if (!window.swiperInitialized) {
-        initHeroSlider();
-        window.swiperInitialized = true;
-    }
+    document.addEventListener('astro:page-load', initHeroSlider);
+    document.addEventListener('DOMContentLoaded', initHeroSlider);
 </script>
 
 <style>
@@ -225,6 +237,20 @@ const finalSlides =
         z-index: 0;
     }
 
+    /* El poster (img) visible inmediatamente — es el candidato LCP */
+    .hero-poster {
+        z-index: 1; /* Encima del video */
+        opacity: 1;
+        transition: opacity 0.6s ease;
+    }
+
+    /* El video empieza oculto — se revela sólo cuando tiene datos */
+    .hero-video-layer {
+        z-index: 0;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+    }
+
     .hero-content {
         position: relative;
         z-index: 10;
@@ -264,8 +290,7 @@ const finalSlides =
         flex-wrap: wrap;
     }
 
-    .btn-primary,
-    .btn-secondary {
+    .btn-primary, .btn-secondary {
         display: inline-block;
         padding: 1rem 2.5rem;
         font-family: var(--font-titles);
@@ -320,14 +345,8 @@ const finalSlides =
     }
 
     @keyframes fadeInUp {
-        0% {
-            opacity: 0;
-            transform: translateY(40px);
-        }
-        100% {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        0% { opacity: 0; transform: translateY(40px); }
+        100% { opacity: 1; transform: translateY(0); }
     }
 
     @media (max-width: 992px) {
@@ -337,16 +356,8 @@ const finalSlides =
             margin-top: 65px;
         }
 
-        .hero-title {
-            font-size: 1.25rem;
-        }
-        .hero-content {
-            margin-top: 15vh;
-        }
-        .btn-primary,
-        .btn-secondary {
-            width: 100%;
-            min-width: unset;
-        }
+        .hero-title { font-size: 1.25rem; }
+        .hero-content { margin-top: 15vh; }
+        .btn-primary, .btn-secondary { width: 100%; min-width: unset; }
     }
 </style>

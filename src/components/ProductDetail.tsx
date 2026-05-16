@@ -105,7 +105,7 @@ export default function ProductDetail({ initialProduct }: Props) {
     const fetchFullProduct = async () => {
       setIsFetchingVariations(true);
       try {
-        const res = await fetch(`/api/products?slug=${product.slug}&t=${Date.now()}`);
+        const res = await fetch(`/api/products?slug=${product.slug}`);
         if (res.ok) {
           const fullData = await res.json();
           if (fullData && fullData.variations) {
