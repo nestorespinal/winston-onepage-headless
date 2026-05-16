@@ -88,13 +88,8 @@ const finalSlides = displaySlides.length > 0 ? displaySlides : [
     <div class="swiper-pagination"></div>
 </section>
 
-<!-- Swiper CSS: no bloqueante (media print trick) -->
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
-    media="print"
-    onload="this.media='all'"
-/>
+<!-- Swiper CSS: bloqueante (5KB crítico para el layout del hero) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
 <!-- Swiper JS: diferido, no bloquea el hilo principal -->
 <script defer src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
