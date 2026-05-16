@@ -90,7 +90,7 @@ export default function ProductCard({ product, isSelected, onSelectionToggle, on
             try {
 
                 // Add timestamp to bypass cache and ensure fresh price data
-                const res = await fetch(`/api/products?slug=${product.slug}&t=${Date.now()}`);
+                const res = await fetch(`/api/products?slug=${product.slug}`);
                 if (res.ok) {
                     const fullData = await res.json();
                     if (fullData && fullData.prices) {
