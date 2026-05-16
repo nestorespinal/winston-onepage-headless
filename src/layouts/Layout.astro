@@ -187,7 +187,7 @@ const seo = rawSeo || {
 
                 function observeNewElements() {
                     const elementsToReveal = document.querySelectorAll(
-                        ".reveal-on-scroll, img"
+                        ".reveal-on-scroll"
                     );
 
                     elementsToReveal.forEach((el) => {
@@ -198,10 +198,15 @@ const seo = rawSeo || {
                         // Skip images already visible (if any)
                         if (el.classList.contains("is-visible")) return;
 
-                        // If it's an image and not in an astro-island, add class if not present
+                        // Solo aplicar reveal a imágenes below-the-fold
+                        // EXCLUIR: imágenes LCP (hero-poster, eager, fetchpriority=high)
                         if (
                             el.tagName === "IMG" &&
-                            !el.closest("astro-island")
+                            !el.closest("astro-island") &&
+                            el.loading !== "eager" &&
+                            el.getAttribute("fetchpriority") !== "high" &&
+                            !el.classList.contains("hero-poster") &&
+                            !el.classList.contains("hero-bg-image")
                         ) {
                             el.classList.add("reveal-on-scroll");
                         }
