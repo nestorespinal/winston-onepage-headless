@@ -150,11 +150,14 @@ export default function CheckoutPage() {
             const payload = {
                 ...form,
                 shipping_cost: shippingCost,
-                items: items.map(item => ({
-                    product_id: Number(String(item.key).split('-')[0]),
-                    variation_id: item.id,
-                    quantity: item.quantity,
-                })),
+                items: items.map(item => {
+                    const baseProductId = Number(String(item.key).split('-')[0]);
+                    return {
+                        product_id: baseProductId,
+                        variation_id: item.id !== baseProductId ? item.id : 0,
+                        quantity: item.quantity,
+                    };
+                }),
             };
 
             const res = await fetch('/api/create-order', {

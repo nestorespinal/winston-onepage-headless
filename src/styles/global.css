@@ -1,5 +1,4 @@
-/* Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Antonio:wght@300;400;700&display=swap');
+/* Fonts — Google Fonts cargado de forma no bloqueante desde Layout.astro */
 
 :root {
   --color-beige: #B1915F;
@@ -8,6 +7,8 @@
   --color-black: #121212;
   --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   --max-width: 1400px;
+  --section-padding-desktop: 2rem 0;
+  --section-padding-mobile: 1rem 0;
 
   /* Font Families */
   --font-titles: 'darkmode-off', 'Antonio', sans-serif;
@@ -120,6 +121,18 @@ img {
   transform: translateY(0);
 }
 
+/* Protección LCP: el poster nunca debe ser transformado ni recortado por el reveal */
+.hero-poster {
+  transform: none !important;
+  visibility: visible !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
 .reveal {
   animation: fadeIn 0.8s ease-out forwards;
 }
@@ -132,5 +145,9 @@ section {
 @media (max-width: 768px) {
   section {
     padding: 4rem 0;
+  }
+
+  .container {
+    padding: 0 1rem;
   }
 }

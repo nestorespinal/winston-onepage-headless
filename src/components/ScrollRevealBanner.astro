@@ -8,17 +8,21 @@ interface Props {
 }
 
 const { imageUrl, imageAlt = "", title, description, pretitle } = Astro.props;
+import { getOptimizedUrl, getImageSrcSet } from "../utils/image";
 ---
 
 <section class="lv-reveal-container" data-reveal-container>
     <div class="lv-reveal-sticky" data-reveal-sticky>
         <div class="lv-reveal-media">
             <img
-                src={imageUrl}
+                src={getOptimizedUrl(imageUrl, { width: 1920 })}
+                srcset={getImageSrcSet(imageUrl, [800, 1200, 1600, 1920])}
+                sizes="100vw"
                 alt={imageAlt}
                 class="lv-reveal-image"
                 data-reveal-image
                 loading="eager"
+                decoding="async"
             />
             <div class="lv-reveal-overlay" data-reveal-overlay></div>
         </div>

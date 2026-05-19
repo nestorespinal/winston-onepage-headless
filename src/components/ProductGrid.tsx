@@ -83,7 +83,7 @@ export default function ProductGrid({ initialProducts = [] }: { initialProducts?
             if (String(cat.id) === '63' && initialProducts.length > 0) {
               return { id: cat.id, data: initialProducts };
             }
-            const res = await fetch(`/api/products?category=${cat.id}&orderby=modified`);
+            const res = await fetch(`/api/products?category=${cat.id}&orderby=modified&per_page=24`);
             if (!res.ok) return { id: cat.id, data: [] };
             const data: Product[] = await res.json();
 

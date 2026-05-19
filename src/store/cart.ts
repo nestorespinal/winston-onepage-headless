@@ -120,6 +120,17 @@ export function addToCart(product: any, quantity: number, color: string | null, 
         }
 
         isCartOpen.set(true);
+
+        // Disparar evento de Meta Pixel
+        if (typeof window !== 'undefined' && typeof (window as any).fbq === 'function') {
+            (window as any).fbq('track', 'AddToCart', {
+                content_name: product.name,
+                content_ids: [finalId.toString()],
+                content_type: 'product',
+                value: processedPrice * quantity,
+                currency: product?.prices?.currency_code || 'COP'
+            });
+        }
     } catch (error) {
         console.error('[Cart Store] Error fatal en addToCart:', error);
     }

@@ -104,8 +104,14 @@ const SearchModal: React.FC = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        doSearch(query.trim());
+        if (query.trim()) {
+            // Al dar enter, redirigimos a la página de búsqueda completa
+            window.location.href = `/buscar?s=${encodeURIComponent(query.trim())}`;
+            close();
+        } else {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            doSearch(query.trim());
+        }
     };
 
     const close = () => setIsOpen(false);
@@ -244,7 +250,7 @@ const SearchModal: React.FC = () => {
                 {/* Footer */}
                 {results.length > 0 && query && (
                     <div className="search-panel-footer">
-                        <a href={`/buscar?q=${encodeURIComponent(query)}`} className="search-see-all" onClick={close}>
+                        <a href={`/buscar?s=${encodeURIComponent(query)}`} className="search-see-all" onClick={close}>
 
                             Ver todos los resultados para <strong>"{query}"</strong>
                             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">

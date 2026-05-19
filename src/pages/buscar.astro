@@ -1,17 +1,29 @@
 ---
+export const prerender = false;
 import Layout from "../layouts/Layout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import ProductCard from "../components/ProductCard";
 import { searchProducts } from "../lib/woocommerce";
 
-const query = Astro.url.searchParams.get("s") || "";
+const url = new URL(Astro.request.url);
+const sParam = url.searchParams.get("s");
+const qParam = url.searchParams.get("q");
+const query = (sParam || qParam || "").trim();
+
 let products = [];
 let loading = false;
 
-if (query.trim().length > 0) {
+// Log for developer in terminal
+console.log(`[Search] Request path: ${url.pathname}, Query: "${query}"`);
+
+if (query.length > 0) {
     loading = true;
-    products = await searchProducts(query);
+    try {
+        products = await searchProducts(query, 50);
+    } catch (e) {
+        console.error("[Search] Error:", e);
+    }
     loading = false;
 }
 ---
@@ -37,25 +49,29 @@ if (query.trim().length > 0) {
                             : "productos encontrados"
                     }
                 </p>
-
                 {
-                    !query && (
-                        <div class="search-page-form">
-                            <form action="/buscar" method="get">
-                                <input
-                                    type="text"
-                                    name="s"
-                                    placeholder="Escribe lo que buscas..."
-                                    class="main-search-input"
-                                    autofocus
-                                />
-                                <button type="submit" class="btn-search-p">
-                                    BUSCAR
-                                </button>
-                            </form>
+                    process.env.NODE_ENV === "development" && (
+                        <div style="font-size: 10px; color: #ccc; margin-top: 10px;">
+                            Debug: query="{query}" | url={Astro.request.url}
                         </div>
                     )
                 }
+
+                <div class="search-page-form">
+                    <form action="/buscar" method="get">
+                        <input
+                            type="text"
+                            name="s"
+                            value={query}
+                            placeholder="Escribe lo que buscas..."
+                            class="main-search-input"
+                            autofocus
+                        />
+                        <button type="submit" class="btn-search-p">
+                            BUSCAR
+                        </button>
+                    </form>
+                </div>
             </div>
         </section>
 

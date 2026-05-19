@@ -9,6 +9,7 @@ import {
     getChildCategories,
     getCategoryTree,
     getAttributeTerms,
+    getCategoryById,
     PUBLIC_WP_URL,
 } from "../../lib/woocommerce";
 import FilteredProductList from "../../components/FilteredProductList";
@@ -104,7 +105,24 @@ try {
         );
 
         // 4. Cargamos subcategorías REALES para el panel de filtros lateral
-        subcategories = await getChildCategories(category.id);
+        let currentSubcats = await getChildCategories(category.id);
+        
+        // Si no tiene hijos, mostramos sus hermanos (hijos del padre) + el padre para volver
+        if (currentSubcats.length === 0 && category.parent !== 0) {
+            const siblings = await getChildCategories(category.parent);
+            const parentCat = await getCategoryById(category.parent);
+            
+            subcategories = [
+                ...(parentCat ? [{ 
+                    id: parentCat.id, 
+                    name: `TODO ${parentCat.name.toUpperCase()}`, 
+                    slug: parentCat.slug 
+                }] : []),
+                ...siblings
+            ];
+        } else {
+            subcategories = currentSubcats;
+        }
 
         // 5. Cargamos el árbol completo de navegación para el dropdown superior
         navigationTree = await getCategoryTree();
@@ -184,7 +202,7 @@ const categoryDesc = category?.description?.replace(/<[^>]+>/g, "") || "";
 // Header de depuración para verificar el tiempo de generación en Vercel
 Astro.response.headers.set('X-Generated-At', new Date().toISOString());
 Astro.response.headers.set('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
-const seoData = wpCategory?.yoast_head_json || wpCategory?.rank_math_seo || null;
+const seoData = {     title: `${categoryTitle} | Winston & Harry`,     description: categoryDesc || `Descubre nuestra colección de ${categoryTitle} en Winston & Harry.`,     opengraph_title: `${categoryTitle} | Winston & Harry`,     opengraph_description: categoryDesc || `Descubre nuestra colección de ${categoryTitle} en Winston & Harry.`,     opengraph_image: desktopBanner || null,     opengraph_type: "website" };
 ---
 
 <Layout 

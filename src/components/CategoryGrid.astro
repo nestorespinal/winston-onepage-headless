@@ -1,54 +1,43 @@
 ---
-// Last update: 2026-03-16 - Deployment Trigger
-import { wcFetch } from "../lib/woocommerce";
+import { getHomeCategories } from "../lib/categories";
+import { getOptimizedUrl, getImageSrcSet } from "../utils/image";
 
-// Lista de categorías que queremos mostrar con su imagen local fija y palabras clave para búsqueda dinámica
-// Lista de categorías que queremos mostrar vinculadas por ID exacto de WordPress
-const targetCategories = [
-    { id: 249, image: "/images/ropa.jpg", fallbackName: "Ropa" },
-    { id: 194, image: "/images/zapatos.jpg", fallbackName: "Botas" },
-    { id: 190, image: "/images/maletas.jpg", fallbackName: "Maletas" },
-    { id: 126, image: "/images/accesorios.jpg", fallbackName: "Accesorios" },
-];
+// Obtenemos los datos dinámicos de la sección
+const data = await getHomeCategories();
 
-// Obtenemos todas las categorías para poder encontrarlas por ID
-const allCategories = (await wcFetch("/products/categories?per_page=100")) || [];
-
-const categoriesData = targetCategories.map((target) => {
-    // Buscamos la categoría por ID exacto
-    const cat = allCategories.find((c: any) => c.id === target.id);
-
-    return {
-        slug: cat?.slug || target.id.toString(),
-        name: cat?.name || target.fallbackName,
-        image: target.image,
-    };
-});
+// Si no hay datos (error API), usamos un fallback para mantener la UI
+const title = data?.title || "Ropa y zapatos para hombre";
+const subtitle =
+    data?.subtitle ||
+    "Todo lo que necesita el hombre colombiano que viste con criterio. Ropa y cuero artesanal bajo un mismo sello.";
+const categories = data?.categories || [];
 ---
 
 <section class="category-grid">
     <div class="container text-center">
         <div class="category-header">
-            <h2 class="category-title">Ropa y zapatos para hombre</h2>
-            <p class="category-subtitle">
-                Todo lo que necesita el hombre colombiano que viste con
-                criterio. Ropa y cuero artesanal bajo un mismo sello.
-            </p>
+            <h2 class="category-title" set:html={title} />
+            <div class="category-subtitle" set:html={subtitle} />
         </div>
 
-        <div class="grid-layout">
+        <div
+            class={`grid-layout ${categories.length >= 4 ? "is-grid-4" : "is-flex-centered"}`}
+        >
             {
-                categoriesData.map((category) => (
+                categories.map((category: any) => (
                     <a
                         href={`/categoria/${category.slug}`}
                         class="category-item"
                     >
                         <div class="category-image-wrapper">
                             <img
-                                src={category.image}
+                                src={getOptimizedUrl(category.image || "/images/placeholder.jpg", { width: 400 })}
+                                srcset={getImageSrcSet(category.image || "/images/placeholder.jpg", [300, 450, 600])}
+                                sizes="(max-width: 768px) 50vw, 25vw"
                                 alt={category.name}
                                 class="category-image"
                                 loading="lazy"
+                                decoding="async"
                             />
                         </div>
                         <h3 class="category-label">{category.name}</h3>
@@ -61,40 +50,53 @@ const categoriesData = targetCategories.map((target) => {
 
 <style>
     .category-grid {
-        padding: 2rem 0;
+        padding: 4rem 0;
         background-color: #fff;
     }
 
     .category-header {
-        max-width: 700px;
-        margin: 0 auto 2rem;
+        max-width: 800px;
+        margin: 0 auto 3rem;
         text-align: center;
+        padding: 0 1rem;
     }
 
     .category-title {
         color: var(--color-green);
-        font-size: 1.5rem;
+        font-size: 2rem;
         margin-bottom: 1.5rem;
         font-family: var(--font-titles);
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 2px;
+        line-height: 1.2;
     }
 
     .category-subtitle {
-        color: var(--color-green);
-        font-size: 0.8rem;
+        color: #333;
+        font-size: 1rem;
         line-height: 1.6;
         font-family: var(--font-paragraphs);
         font-weight: 400;
         max-width: 600px;
         margin: 0 auto;
+        text-transform: none;
     }
 
     .grid-layout {
+        max-width: var(--container-max-width, 1400px);
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 2rem;
+    }
+
+    /* Forzar el grid cuando hay 4 items */
+    .grid-layout.is-grid-4 {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 1.5rem;
+        gap: 2rem;
     }
 
     .category-item {
@@ -105,28 +107,34 @@ const categoriesData = targetCategories.map((target) => {
         transition: transform 0.4s ease;
     }
 
+    /* Reset de anchos para el modo grid */
+    .is-grid-4 .category-item {
+        width: 100%;
+    }
+
     .category-image-wrapper {
         width: 100%;
         aspect-ratio: 3 / 4;
         overflow: hidden;
         margin-bottom: 1.5rem;
         background-color: #f5f5f5;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
     }
 
     .category-image {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        transition: transform 0.8s cubic-bezier(0.2, 0, 0.2, 1);
     }
 
     .category-item:hover .category-image {
-        transform: scale(1.05);
+        transform: scale(1.08);
     }
 
     .category-label {
         font-family: var(--font-titles);
-        font-size: 1rem;
+        font-size: 1.1rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 2px;
@@ -140,28 +148,43 @@ const categoriesData = targetCategories.map((target) => {
         color: var(--color-beige);
     }
 
-    @media (max-width: 992px) {
-        .grid-layout {
+    @media (max-width: 1024px) {
+        .category-grid {
+            padding: 3rem 0;
+        }
+        
+        .grid-layout.is-grid-4 {
             grid-template-columns: repeat(2, 1fr);
-            gap: 2rem;
+            gap: 2rem 1.5rem;
+            padding: 0 1.5rem;
         }
 
-        .category-grid {
-            padding: 4rem 1.5rem;
+        .category-title {
+            font-size: 1.75rem;
         }
     }
 
     @media (max-width: 480px) {
         .category-title {
-            font-size: 1.5rem;
-        }
-
-        .grid-layout {
-            gap: 1rem;
+            font-size: 1.6rem;
+            letter-spacing: 1px;
         }
 
         .category-subtitle {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+        }
+
+        .category-grid {
+            padding: 2rem 0;
+        }
+
+        .grid-layout.is-grid-4 {
+            gap: 1.5rem 1rem;
+            padding: 0 1rem;
+        }
+
+        .category-label {
+            font-size: 1rem;
         }
     }
 </style>

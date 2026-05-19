@@ -20,7 +20,7 @@ const SearchDrawer: React.FC = () => {
             if (query.length > 1) {
                 setLoading(true);
                 try {
-                    const res = await fetch(`/api/products?search=${encodeURIComponent(query)}&per_page=6`);
+                    const res = await fetch(`/api/products?search=${encodeURIComponent(query)}&per_page=10`);
                     if (res.ok) {
                         const data = await res.json();
                         setResults(data);
@@ -33,7 +33,7 @@ const SearchDrawer: React.FC = () => {
             } else {
                 setResults([]);
             }
-        }, 400);
+        }, 600);
 
         return () => clearTimeout(timer);
     }, [query]);
@@ -126,7 +126,7 @@ const SearchDrawer: React.FC = () => {
                     </div>
 
                     {results.length > 0 && (
-                        <a href={`/buscar?s=${encodeURIComponent(query)}`} className="view-all-results">
+                        <a href={`/buscar?s=${encodeURIComponent(query)}`} className="view-all-results" onClick={handleClose}>
                             VER TODOS LOS RESULTADOS
                         </a>
                     )}

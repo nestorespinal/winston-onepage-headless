@@ -1,0 +1,705 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import { PUBLIC_WP_URL } from "../../lib/woocommerce";
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+
+let post: any = null;
+let relatedPosts: any[] = [];
+
+try {
+  const postRes = await fetch(
+    `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?slug=${slug}&_embed&status=publish`,
+  );
+  if (postRes.ok) {
+    const data = await postRes.json();
+    post = data[0] || null;
+  }
+  if (!post) return Astro.redirect("/blog");
+
+  const catId = post._embedded?.["wp:term"]?.[0]?.[0]?.id;
+  if (catId) {
+    const relRes = await fetch(
+      `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?categories=${catId}&per_page=3&_embed&exclude=${post.id}&status=publish`,
+    );
+    if (relRes.ok) relatedPosts = await relRes.json();
+  }
+  if (relatedPosts.length === 0) {
+    const recRes = await fetch(
+      `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?per_page=3&_embed&exclude=${post.id}&status=publish`,
+    );
+    if (recRes.ok) relatedPosts = await recRes.json();
+  }
+} catch (e) {
+  console.error("Error fetching blog post:", e);
+  return Astro.redirect("/blog");
+}
+
+const categories: any[] = post._embedded?.["wp:term"]?.[0] || [];
+const tags: any[] = post._embedded?.["wp:term"]?.[1] || [];
+const date = new Date(post.date).toLocaleDateString("es-CO", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+const title = post.title.rendered;
+const content = post.content.rendered;
+const excerpt =
+  post.excerpt?.rendered?.replace(/<[^>]*>/g, "").slice(0, 160) || "";
+
+let img = post._embedded?.["wp:featuredmedia"]?.[0]?.source_url || "";
+const reelUrl = post.acf?.reel_url || "";
+
+function getEmbedUrl(url: string): {
+  src: string;
+  type: "ig" | "tiktok" | "youtube" | null;
+  id: string | null;
+} {
+  if (!url) return { src: "", type: null, id: null };
+
+  // YouTube detection
+  const ytMatch = url.match(/(?:shorts\/|v=|youtu\.be\/)([^/?#&]+)/);
+  if (ytMatch && (url.includes("youtube.com") || url.includes("youtu.be"))) {
+    return {
+      src: `https://www.youtube.com/embed/${ytMatch[1]}`,
+      type: "youtube",
+      id: ytMatch[1],
+    };
+  }
+
+  // Instagram detection
+  const igMatch = url.match(/(?:reel|p)\/([^/?#&]+)/);
+  if (igMatch && url.includes("instagram.com")) {
+    return {
+      src: `https://www.instagram.com/reel/${igMatch[1]}/embed/`,
+      type: "ig",
+      id: igMatch[1],
+    };
+  }
+
+  // TikTok detection
+  const ttMatch = url.match(/video\/(\d+)/);
+  if (ttMatch && url.includes("tiktok.com")) {
+    return {
+      src: `https://www.tiktok.com/embed/v2/${ttMatch[1]}`,
+      type: "tiktok",
+      id: ttMatch[1],
+    };
+  }
+
+  return { src: "", type: null, id: null };
+}
+
+const embed = getEmbedUrl(reelUrl);
+
+// YouTube thumbnail fallback
+if (!img && embed.type === "youtube" && embed.id) {
+  img = `https://img.youtube.com/vi/${embed.id}/maxresdefault.jpg`;
+}
+const postUrl = `https://winstonandharrystore.com/blog/${slug}`;
+
+const seoData = {
+  title: `${post.title.rendered.replace(/<[^>]*>/g, "")} | Blog Winston & Harry`,
+  description: excerpt,
+  image: img || undefined,
+  canonical: postUrl,
+};
+---
+
+<Layout
+  seoData={seoData}
+  title={seoData.title}
+  description={seoData.description}
+>
+  <Header />
+
+  <section class="post-hero">
+    <div class="container post-hero__inner">
+      <div class="post-hero__media">
+        {
+          img ? (
+            <a
+              href={reelUrl || img}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="post-hero__media-link"
+            >
+              <img src={img} alt={title.replace(/<[^>]*>/g, "")} />
+              {reelUrl && (
+                <div class="reel-play-overlay">
+                  <span class="reel-play-platform">
+                    {embed.type === "tiktok"
+                      ? "♪ TikTok"
+                      : embed.type === "youtube"
+                        ? "▶ YouTube"
+                        : "▶ Instagram"}
+                  </span>
+                  <span class="reel-play-btn">▶</span>
+                </div>
+              )}
+            </a>
+          ) : null
+        }
+      </div>
+      <div class="post-hero__info">
+        <nav class="post-breadcrumb" aria-label="Breadcrumb">
+          <a href="/">Inicio</a><span>/</span><a href="/blog">Blog</a>
+          {
+            categories[0] && (
+              <>
+                <>
+                  <span>/</span>
+                  <span>{categories[0].name}</span>
+                </>
+              </>
+            )
+          }
+        </nav>
+        <h2 set:html={title} />
+        {
+          tags.length > 0 && (
+            <div class="post-hero__tags">
+              {tags.map((t: any) => (
+                <a href={`/blog?tag=${t.id}`} class="post-tag">
+                  {t.name}
+                </a>
+              ))}
+            </div>
+          )
+        }
+        {
+          reelUrl && (
+            <a
+              href={reelUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn-reel"
+            >
+              {embed.type === "tiktok"
+                ? "♪ Ver en TikTok"
+                : embed.type === "youtube"
+                  ? "▶ Ver en YouTube"
+                  : "▶ Ver en Instagram"}
+            </a>
+          )
+        }
+      </div>
+    </div>
+  </section>
+
+  <article class="post-content-section">
+    <div class="container post-layout">
+      <div class="post-body">
+        <div class="post-body__content" set:html={content} />
+        {
+          tags.length > 0 && (
+            <div class="post-tags">
+              <span>Tags:</span>
+              {tags.map((t: any) => (
+                <a href={`/blog?tag=${t.id}`} class="post-tag">
+                  {t.name}
+                </a>
+              ))}
+            </div>
+          )
+        }
+        <div class="post-share">
+          <span>Compartir:</span>
+          <a
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`}
+            target="_blank"
+            rel="noopener noreferrer">Facebook</a
+          >
+          <a
+            href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(postUrl)}&text=${encodeURIComponent(title.replace(/<[^>]*>/g, ""))}`}
+            target="_blank"
+            rel="noopener noreferrer">X / Twitter</a
+          >
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(title.replace(/<[^>]*>/g, "") + " " + postUrl)}`}
+            target="_blank"
+            rel="noopener noreferrer">WhatsApp</a
+          >
+        </div>
+        <div class="post-back">
+          <a href="/blog" class="btn-outline">← Volver al Blog</a>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- {
+    relatedPosts.length > 0 && (
+      <section class="related-posts">
+        <div class="container">
+          <h2 class="related-posts__title">También te puede interesar</h2>
+          <div class="related-grid">
+            {relatedPosts.map((rp: any) => {
+              const rpImg =
+                rp._embedded?.["wp:featuredmedia"]?.[0]?.source_url || "";
+              const rpCat = rp._embedded?.["wp:term"]?.[0]?.[0]?.name || "";
+              const rpDate = new Date(rp.date).toLocaleDateString("es-CO", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              });
+              const rpExcerpt =
+                rp.excerpt?.rendered?.replace(/<[^>]*>/g, "").slice(0, 100) +
+                "...";
+              return (
+                <article class="blog-card reveal-on-scroll">
+                  <a href={`/blog/${rp.slug}`} class="blog-card__image-wrap">
+                    {rpImg && (
+                      <img
+                        src={rpImg}
+                        alt={rp.title.rendered.replace(/<[^>]*>/g, "")}
+                        loading="lazy"
+                      />
+                    )}
+                    {rpCat && <span class="blog-card__cat">{rpCat}</span>}
+                  </a>
+                  <div class="blog-card__body">
+                    <time class="blog-card__date">{rpDate}</time>
+                    <h3 class="blog-card__title">
+                      <a
+                        href={`/blog/${rp.slug}`}
+                        set:html={rp.title.rendered}
+                      />
+                    </h3>
+                    <p class="blog-card__excerpt">{rpExcerpt}</p>
+                    <a href={`/blog/${rp.slug}`} class="btn blog-card__cta">
+                      Leer más
+                    </a>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    )
+  } -->
+  <Footer />
+</Layout>
+
+<style>
+  .post-hero {
+    background: #155338;
+    position: relative;
+    margin-top: 90px; /* Espacio para el header fijo */
+    min-height: calc(80vh - 90px);
+    display: flex;
+    align-items: center;
+    padding: 4rem 0;
+  }
+
+  @media (max-width: 992px) {
+    .post-hero {
+      margin-top: 0px;
+      min-height: calc(70vh - 65px);
+    }
+  }
+
+  /* Si el header se oculta al hacer scroll, podemos usar esta clase si queremos que el hero suba */
+  :global(body.is-header-hidden) .post-hero {
+    margin-top: 0;
+  }
+  section.post-hero .post-hero__inner {
+    display: flex !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .post-hero__media {
+    position: relative;
+    aspect-ratio: 9/16;
+    overflow: hidden;
+    max-height: 500px;
+    flex: 0 0 auto;
+  }
+  .post-hero__media-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .reel-play-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.45) 0%,
+      transparent 55%
+    );
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+    padding: 1.5rem;
+    gap: 0.5rem;
+    transition: background 0.3s;
+  }
+  .post-hero__media-link:hover .reel-play-overlay {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 65%);
+  }
+  .reel-play-platform {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: var(--font-paragraphs, sans-serif);
+  }
+  .reel-play-btn {
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+  }
+  .post-hero__media iframe,
+  .post-hero__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border: none;
+    display: block;
+  }
+  .post-hero__info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 3rem 2.5rem;
+    color: #efefef;
+    gap: 1rem;
+    width: 55%;
+  }
+  .post-hero__info h2 {
+    font-size: clamp(1.1rem, 2.2vw, 1.8rem);
+    color: #efefef;
+    letter-spacing: 3px;
+    line-height: 1.3;
+    margin: 0;
+    text-transform: uppercase;
+  }
+  .post-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(239, 239, 239, 0.55);
+  }
+  .post-breadcrumb a {
+    color: rgba(239, 239, 239, 0.55);
+    transition: color 0.2s;
+  }
+  .post-breadcrumb a:hover {
+    color: #b1915f;
+  }
+  .post-hero__tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .post-hero__tags .post-tag {
+    border: 1px solid rgba(239, 239, 239, 0.3);
+    color: rgba(239, 239, 239, 0.7);
+    padding: 0.2rem 0.65rem;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: 0.2s;
+  }
+  .post-hero__tags .post-tag:hover {
+    border-color: #b1915f;
+    color: #b1915f;
+  }
+  .btn-reel {
+    display: inline-block;
+    background: #b1915f;
+    color: #fff;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: background 0.2s;
+    align-self: flex-start;
+  }
+  .btn-reel:hover {
+    background: #9a7a4e;
+    text-decoration: none;
+    color: #fff;
+  }
+  .post-content-section {
+    padding: 4rem 0 5rem;
+  }
+  .post-layout {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .post-body__content {
+    font-size: 0.88rem;
+    line-height: 1.95;
+    color: #2a2a2a;
+  }
+  .post-body__content :global(h2) {
+    color: #155338;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 2.5rem 0 1rem;
+  }
+  .post-body__content :global(h3) {
+    color: #155338;
+    font-size: 1.1rem;
+    letter-spacing: 1.5px;
+    margin: 2rem 0 0.75rem;
+  }
+  .post-body__content :global(p) {
+    margin-bottom: 1.5rem;
+  }
+  .post-body__content :global(img) {
+    max-width: 100%;
+    height: auto;
+    margin: 1.5rem 0;
+    display: block;
+  }
+  .post-body__content :global(ul),
+  .post-body__content :global(ol) {
+    padding-left: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .post-body__content :global(li) {
+    margin-bottom: 0.5rem;
+  }
+  .post-body__content :global(blockquote) {
+    border-left: 3px solid #b1915f;
+    padding: 1rem 1.5rem;
+    margin: 2rem 0;
+    background: rgba(177, 145, 95, 0.06);
+    font-style: italic;
+    color: #555;
+  }
+  .post-body__content :global(a) {
+    color: #155338;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .post-body__content :global(a:hover) {
+    color: #b1915f;
+  }
+  .post-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(18, 18, 18, 0.1);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+  }
+  .post-tag {
+    border: 1px solid rgba(18, 18, 18, 0.15);
+    padding: 0.25rem 0.75rem;
+    color: #555;
+    font-size: 0.68rem;
+    transition: 0.2s;
+  }
+  .post-tag:hover {
+    border-color: #155338;
+    color: #155338;
+  }
+  .post-share {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+  }
+  .post-share a {
+    padding: 0.4rem 1rem;
+    border: 1px solid #155338;
+    color: #155338;
+    font-size: 0.68rem;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+  }
+  .post-share a:hover {
+    background: #155338;
+    color: #efefef;
+    text-decoration: none;
+  }
+  .post-back {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(18, 18, 18, 0.08);
+  }
+  .btn-outline {
+    display: inline-block;
+    border: 1px solid #155338;
+    color: #155338;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+  }
+  .btn-outline:hover {
+    background: #155338;
+    color: #efefef;
+  }
+  .related-posts {
+    padding: 5rem 0;
+    background: #f9f9f7;
+  }
+  .related-posts__title {
+    text-align: center;
+    margin-bottom: 3rem;
+    font-size: 1.1rem;
+    color: #155338;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+  }
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+  .blog-card {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid rgba(18, 18, 18, 0.08);
+    transition: box-shadow 0.3s ease;
+  }
+  .blog-card:hover {
+    box-shadow: 0 8px 32px rgba(21, 83, 56, 0.12);
+  }
+  .blog-card__image-wrap {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 3/4;
+    display: block;
+    background: #f0ece6;
+  }
+  .blog-card__image-wrap a {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .blog-card__image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+  .blog-card__embed {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    pointer-events: none;
+  }
+  .blog-card__cat {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: #b1915f;
+    color: #fff;
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 0.3rem 0.75rem;
+    z-index: 2;
+  }
+  .blog-card__body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0.4rem;
+  }
+  .blog-card__date {
+    font-size: 0.68rem;
+    color: #b1915f;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .blog-card__title {
+    font-size: 0.95rem;
+    color: #155338;
+    letter-spacing: 1px;
+    margin: 0;
+    line-height: 1.4;
+  }
+  .blog-card__title a {
+    color: inherit;
+    transition: color 0.2s;
+  }
+  .blog-card__title a:hover {
+    color: #b1915f;
+  }
+  .blog-card__excerpt {
+    font-size: 0.78rem;
+    color: #555;
+    flex: 1;
+    line-height: 1.6;
+  }
+  .blog-card__cta {
+    align-self: flex-start;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    padding: 0.5rem 1.2rem;
+  }
+  @media (max-width: 900px) {
+    .related-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 700px) {
+    section.post-hero .post-hero__inner {
+      flex-direction: column-reverse !important;
+    }
+    .post-hero__media {
+      max-height: 450px !important;
+      width: auto !important;
+      aspect-ratio: 9/16 !important;
+      margin: 0 auto !important;
+    }
+    .post-hero__info {
+      padding: 2.5rem 1.5rem;
+      width: 100% !important;
+      align-items: center !important;
+      text-align: center;
+    }
+    .post-hero__info .btn-reel {
+      align-self: center !important;
+    }
+  }
+  @media (max-width: 600px) {
+    .post-content-section {
+      padding: 3rem 0;
+    }
+    .related-posts {
+      padding: 3rem 0;
+    }
+    .related-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

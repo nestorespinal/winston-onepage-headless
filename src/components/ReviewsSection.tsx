@@ -221,7 +221,7 @@ export default function ReviewsSection() {
 
             <style>{`
                 .reviews-section {
-                    padding: 4rem 0;
+                    padding: 4rem;
                     background-color: #fff;
                     overflow: hidden;
                     width: 100%;
@@ -310,7 +310,7 @@ export default function ReviewsSection() {
                     }
                     .review-card-wrapper { flex: 0 0 100%; }
                     .container-reviews { padding: 0 0rem; }
-                    .reviews-section { padding: 4rem 0; }
+                    .reviews-section { padding: 4rem 2rem; }
                     .review-card {
                         background: #F5F5F5;
                         padding: 1.5rem;

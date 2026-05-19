@@ -24,6 +24,7 @@ export default function CartView() {
     }, [$cartItems]);
 
     const [shippingSettings, setShippingSettings] = React.useState({ flat_rate: 21008, free_shipping_threshold: 100000 });
+    const [couponCode, setCouponCode] = React.useState('');
 
     React.useEffect(() => {
         fetch('/api/shipping-settings')
@@ -44,7 +45,26 @@ export default function CartView() {
     const total = subtotal + shippingCost;
 
     const handleCheckout = () => {
-        window.location.href = 'https://tienda.winstonandharrystore.com/checkout/';
+        if (typeof window !== 'undefined') {
+            (window as any).dataLayer = (window as any).dataLayer || [];
+            (window as any).dataLayer.push({
+                event: 'begin_checkout',
+                currency: 'COP', value: total,
+                items: items.map(item => ({ item_id: String(item.id), item_name: item.name, price: item.price, quantity: item.quantity }))
+            });
+            if (typeof (window as any).fbq === 'function') {
+                (window as any).fbq('track', 'InitiateCheckout', {
+                    content_ids: items.map(item => String(item.id)), content_type: 'product', value: total, currency: 'COP', num_items: items.length
+                });
+            }
+        }
+        redirectToCheckout('/checkout/', couponCode);
+    };
+
+    const handleApplyCoupon = () => {
+        if (!couponCode.trim()) return;
+        // Por ahora redirigimos al checkout aplicando el cupón
+        handleCheckout();
     };
 
     if (items.length === 0) {
@@ -168,6 +188,22 @@ export default function CartView() {
                                 );
                             })}
                         </div>
+
+                        <div className="cart-actions-bottom">
+                            <div className="coupon-wrapper">
+                                <input
+                                    type="text"
+                                    placeholder="Código de cupón"
+                                    className="coupon-input"
+                                    value={couponCode}
+                                    onChange={(e) => setCouponCode(e.target.value)}
+                                />
+                                <button className="btn-apply-coupon" onClick={handleApplyCoupon}>
+                                    APLICAR CUPÓN
+                                </button>
+                            </div>
+                            <a href="/tienda" className="continue-shopping">← CONTINUAR COMPRANDO</a>
+                        </div>
                     </div>
 
                     <div className="cart-sidebar">
@@ -224,6 +260,69 @@ export default function CartView() {
                     grid-template-columns: 1fr 380px;
                     gap: 3rem;
                 }
+                
+                .cart-actions-bottom {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-top: 3rem;
+                    padding-top: 2rem;
+                    border-top: 1px solid #eee;
+                }
+                
+                .coupon-wrapper {
+                    display: flex;
+                    gap: 10px;
+                    align-items: stretch;
+                }
+                
+                .coupon-input {
+                    background: #f4f4f4;
+                    border: 1px solid #e0e0e0;
+                    padding: 0 1.5rem;
+                    height: 50px;
+                    width: 240px;
+                    font-family: var(--font-paragraphs);
+                    font-size: 0.85rem;
+                    outline: none;
+                }
+                
+                .coupon-input:focus {
+                    border-color: var(--color-beige);
+                }
+                
+                .btn-apply-coupon {
+                    height: 50px;
+                    padding: 0 2rem;
+                    background: transparent;
+                    border: 1px solid var(--color-green);
+                    color: var(--color-green);
+                    font-family: var(--font-titles);
+                    font-weight: 700;
+                    font-size: 0.9rem;
+                    letter-spacing: 2px;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    white-space: nowrap;
+                }
+                
+                .btn-apply-coupon:hover {
+                    background: var(--color-green);
+                    color: #fff;
+                }
+                
+                .continue-shopping {
+                    font-family: var(--font-titles);
+                    font-size: 0.8rem;
+                    color: #999;
+                    text-decoration: none;
+                    letter-spacing: 1px;
+                }
+                
+                .continue-shopping:hover {
+                    color: var(--color-green);
+                }
+
                 .cart-table-header {
                     display: grid;
                     grid-template-columns: 1fr 120px 140px 120px;
@@ -519,6 +618,43 @@ export default function CartView() {
                     .qty-control span {
                         width: 26px;
                         font-size: 0.75rem;
+                    }
+
+                    /* New responsive fixes */
+                    .cart-page-title {
+                        margin-bottom: 2rem;
+                        padding: 0 1rem;
+                    }
+
+                    .cart-actions-bottom {
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 1.5rem;
+                        margin-top: 2rem;
+                    }
+
+                    .coupon-wrapper {
+                        flex-direction: column;
+                    }
+
+                    .coupon-input {
+                        width: 100%;
+                    }
+
+                    .continue-shopping {
+                        text-align: center;
+                    }
+
+                    .summary-card {
+                        padding: 1.5rem;
+                    }
+
+                    .total-amount {
+                        font-size: 1.2rem !important;
+                    }
+                    
+                    .container {
+                        padding: 0 1rem;
                     }
                 }
             `}</style>

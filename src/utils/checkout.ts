@@ -6,7 +6,7 @@ import { PUBLIC_WP_URL } from '../lib/woocommerce';
  * pasando todos los items actuales del carrito para sincronizar la sesión.
  * @param path - La ruta de destino (ej: '/checkout/' o '/cart/')
  */
-export async function redirectToCheckout(path: string = '/') {
+export async function redirectToCheckout(path: string = '/', coupon: string = '') {
     const $cartItems = cartItems.get();
     const items = Object.values($cartItems).map(value => JSON.parse(value));
 
@@ -52,9 +52,28 @@ export async function redirectToCheckout(path: string = '/') {
     const separator = baseUrl.includes('?') ? '&' : '?';
     let finalUrl = `${baseUrl}${separator}fill_cart=${itemsQuery}`;
 
+    // Añadir cupón si existe
+    if (coupon) {
+        finalUrl += `&coupon_code=${encodeURIComponent(coupon)}`;
+    }
+
     // Añadir autologin si hay token
     if (token) {
         finalUrl += `&autologin=${token}`;
+    }
+
+    // Disparar evento de Meta Pixel: InitiateCheckout
+    if (typeof window !== 'undefined' && typeof (window as any).fbq === 'function') {
+        const cartValue = items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
+        const itemIds = items.map((item: any) => item.id.toString());
+        
+        (window as any).fbq('track', 'InitiateCheckout', {
+            content_ids: itemIds,
+            content_type: 'product',
+            value: cartValue,
+            currency: 'COP',
+            num_items: items.reduce((acc: number, item: any) => acc + item.quantity, 0)
+        });
     }
 
     window.location.href = finalUrl;

@@ -19,7 +19,7 @@ export const GET: APIRoute = async ({ url }) => {
                 headers: {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*',
-                    'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=300'
+                    'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400'
                 }
             });
         }
@@ -37,7 +37,7 @@ export const GET: APIRoute = async ({ url }) => {
                 headers: {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*',
-                    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600'
+                    'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400'
                 }
             });
         }
@@ -64,7 +64,7 @@ export const GET: APIRoute = async ({ url }) => {
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
-                'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600'
+                'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400'
             }
         });
 

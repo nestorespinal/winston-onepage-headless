@@ -7,57 +7,40 @@
   ],
   "headers": [
     {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=600, stale-while-revalidate=300"
-        }
-      ]
+      "source": "/api/auth/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }]
     },
     {
-      "source": "/_astro/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
+      "source": "/api/create-order",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }]
     },
     {
-      "source": "/images/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=2592000, stale-while-revalidate=86400"
-        }
-      ]
+      "source": "/api/subscribe",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }]
     },
     {
-      "source": "/fonts/(.*)",
+      "source": "/api/sync(.*)",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/api/sync",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
-        },
+        { "key": "Cache-Control", "value": "no-store, max-age=0" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, x-wc-webhook-signature, x-wc-webhook-topic, x-wc-webhook-resource, x-wc-webhook-event, x-wc-webhook-id"
         }
       ]
+    },
+    {
+      "source": "/_astro/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000, stale-while-revalidate=86400" }]
+    },
+    {
+      "source": "/fonts/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     }
   ],
   "redirects": [
@@ -72,7 +55,22 @@
       "permanent": true
     },
     {
+      "source": "/shop/",
+      "destination": "/tienda",
+      "permanent": true
+    },
+    {
+      "source": "/Shop/",
+      "destination": "/tienda",
+      "permanent": true
+    },
+    {
       "source": "/telefonos-ubicacion-tiendas",
+      "destination": "/contacto",
+      "permanent": true
+    },
+    {
+      "source": "/telefonos-ubicacion-tiendas/",
       "destination": "/contacto",
       "permanent": true
     },
@@ -82,8 +80,18 @@
       "permanent": true
     },
     {
+      "source": "/guia-tallas/",
+      "destination": "/guia-de-tallas",
+      "permanent": true
+    },
+    {
       "source": "/product-category/zapatos/page/:page",
-      "destination": "/categoria/zapatos-cuero-hombre?page=$page",
+      "destination": "/categoria/zapatos-cuero-hombre?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos/",
+      "destination": "/categoria/zapatos-cuero-hombre",
       "permanent": true
     },
     {
@@ -93,7 +101,12 @@
     },
     {
       "source": "/product-category/zapatos/zapatos-de-cordon/page/:page",
-      "destination": "/categoria/zapatos-cordon-hombre?page=$page",
+      "destination": "/categoria/zapatos-cordon-hombre?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos/zapatos-de-cordon/",
+      "destination": "/categoria/zapatos-cordon-hombre",
       "permanent": true
     },
     {
@@ -103,7 +116,12 @@
     },
     {
       "source": "/product-category/zapatos/mocasin/page/:page",
-      "destination": "/categoria/mocasines-cuero-hombre?page=$page",
+      "destination": "/categoria/mocasines-cuero-hombre?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos/mocasin/",
+      "destination": "/categoria/mocasines-cuero-hombre",
       "permanent": true
     },
     {
@@ -113,12 +131,22 @@
     },
     {
       "source": "/product-category/zapatos/botas/page/:page",
-      "destination": "/categoria/botas-cuero-hombre?page=$page",
+      "destination": "/categoria/botas-cuero-hombre?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos/botas/",
+      "destination": "/categoria/botas-cuero-hombre",
       "permanent": true
     },
     {
       "source": "/product-category/zapatos/botas",
       "destination": "/categoria/botas-cuero-hombre",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos/zapatos-de-hebilla/",
+      "destination": "/categoria/zapatos-hebilla-hombre",
       "permanent": true
     },
     {
@@ -128,7 +156,12 @@
     },
     {
       "source": "/product-category/zapatos/tenis/page/:page",
-      "destination": "/categoria/tenis-hombre?page=$page",
+      "destination": "/categoria/tenis-hombre?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos/tenis/",
+      "destination": "/categoria/tenis-hombre",
       "permanent": true
     },
     {
@@ -137,8 +170,18 @@
       "permanent": true
     },
     {
+      "source": "/product-category/zapatos/linea-colombia/",
+      "destination": "/categoria/zapatos-hechos-colombia-hombre",
+      "permanent": true
+    },
+    {
       "source": "/product-category/zapatos/linea-colombia",
       "destination": "/categoria/zapatos-hechos-colombia-hombre",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos/pantuflas/",
+      "destination": "/categoria/pantuflas-cuero-hombre",
       "permanent": true
     },
     {
@@ -147,7 +190,17 @@
       "permanent": true
     },
     {
+      "source": "/product-category/zapatos/tallas-grandes/",
+      "destination": "/categoria/tallas-grandes-zapatos-hombre",
+      "permanent": true
+    },
+    {
       "source": "/product-category/zapatos/tallas-grandes",
+      "destination": "/categoria/tallas-grandes-zapatos-hombre",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/tallas-grandes/",
       "destination": "/categoria/tallas-grandes-zapatos-hombre",
       "permanent": true
     },
@@ -158,7 +211,12 @@
     },
     {
       "source": "/product-category/ropa/page/:page",
-      "destination": "/categoria/ropa-hombre-colombia?page=$page",
+      "destination": "/categoria/ropa-hombre-colombia?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/ropa/",
+      "destination": "/categoria/ropa-hombre-colombia",
       "permanent": true
     },
     {
@@ -167,7 +225,17 @@
       "permanent": true
     },
     {
+      "source": "/product-category/ropa/chaquetas/",
+      "destination": "/categoria/chaquetas-hombre",
+      "permanent": true
+    },
+    {
       "source": "/product-category/ropa/chaquetas",
+      "destination": "/categoria/chaquetas-hombre",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/chaquetas/",
       "destination": "/categoria/chaquetas-hombre",
       "permanent": true
     },
@@ -177,7 +245,17 @@
       "permanent": true
     },
     {
+      "source": "/product-category/ropa/camisetas-hoodies/",
+      "destination": "/categoria/polos-camisetas-hombre",
+      "permanent": true
+    },
+    {
       "source": "/product-category/ropa/camisetas-hoodies",
+      "destination": "/categoria/polos-camisetas-hombre",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/camisetas-hoodies/",
       "destination": "/categoria/polos-camisetas-hombre",
       "permanent": true
     },
@@ -187,7 +265,17 @@
       "permanent": true
     },
     {
+      "source": "/product-category/ropa/sueter-tejido/",
+      "destination": "/categoria/sueteres-chalecos-hombre",
+      "permanent": true
+    },
+    {
       "source": "/product-category/ropa/sueter-tejido",
+      "destination": "/categoria/sueteres-chalecos-hombre",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/sueter-tejido/",
       "destination": "/categoria/sueteres-chalecos-hombre",
       "permanent": true
     },
@@ -198,12 +286,22 @@
     },
     {
       "source": "/product-category/maletas/page/:page",
-      "destination": "/categoria/maletas-morrales-cuero?page=$page",
+      "destination": "/categoria/maletas-morrales-cuero?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/maletas/",
+      "destination": "/categoria/maletas-morrales-cuero",
       "permanent": true
     },
     {
       "source": "/product-category/maletas",
       "destination": "/categoria/maletas-morrales-cuero",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/zapatos-maletas/",
+      "destination": "/categoria/zapatos-maletas-cuero-hombre",
       "permanent": true
     },
     {
@@ -213,7 +311,12 @@
     },
     {
       "source": "/product-category/accesorios/page/:page",
-      "destination": "/categoria/accesorios-hombre?page=$page",
+      "destination": "/categoria/accesorios-hombre?page=:page",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/accesorios/",
+      "destination": "/categoria/accesorios-hombre",
       "permanent": true
     },
     {
@@ -222,8 +325,18 @@
       "permanent": true
     },
     {
+      "source": "/product-category/mascotas/",
+      "destination": "/categoria/collares-cuero-perro",
+      "permanent": true
+    },
+    {
       "source": "/product-category/mascotas",
       "destination": "/categoria/collares-cuero-perro",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/outlet/",
+      "destination": "/categoria/outlet-zapatos-ropa",
       "permanent": true
     },
     {
@@ -232,13 +345,28 @@
       "permanent": true
     },
     {
+      "source": "/product-category/guia-de-regalos/",
+      "destination": "/categoria/ideas-regalo-hombre",
+      "permanent": true
+    },
+    {
       "source": "/product-category/guia-de-regalos",
       "destination": "/categoria/ideas-regalo-hombre",
       "permanent": true
     },
     {
+      "source": "/product-category/bono-de-regalo/",
+      "destination": "/categoria/bono-regalo-hombre",
+      "permanent": true
+    },
+    {
       "source": "/product-category/bono-de-regalo",
       "destination": "/categoria/bono-regalo-hombre",
+      "permanent": true
+    },
+    {
+      "source": "/product-category/menos-350000/",
+      "destination": "/tienda",
       "permanent": true
     },
     {
@@ -272,6 +400,26 @@
       "permanent": true
     },
     {
+      "source": "/politica-privacidad-proteccion-datos/",
+      "destination": "/politica-privacidad-proteccion-datos",
+      "permanent": true
+    },
+    {
+      "source": "/politica-costos-envio/",
+      "destination": "/politica-costos-envio",
+      "permanent": true
+    },
+    {
+      "source": "/politica-cookies/",
+      "destination": "/politica-cookies",
+      "permanent": true
+    },
+    {
+      "source": "/terminos-condiciones/",
+      "destination": "/terminos-condiciones",
+      "permanent": true
+    },
+    {
       "source": "/cart",
       "destination": "/carrito",
       "permanent": true
@@ -282,8 +430,18 @@
       "permanent": true
     },
     {
+      "source": "/product-tag/:slug/",
+      "destination": "/tienda",
+      "permanent": true
+    },
+    {
       "source": "/product-tag/:slug",
       "destination": "/tienda",
+      "permanent": true
+    },
+    {
+      "source": "/product/:slug/",
+      "destination": "/productos/:slug",
       "permanent": true
     },
     {
@@ -296,14 +454,6 @@
     {
       "source": "/carrito",
       "destination": "/carrito"
-    },
-    {
-      "source": "/finalizar-compra",
-      "destination": "https://tienda.winstonandharrystore.com/checkout"
-    },
-    {
-      "source": "/finalizar-compra/:path*",
-      "destination": "https://tienda.winstonandharrystore.com/checkout/:path*"
     }
   ]
 }

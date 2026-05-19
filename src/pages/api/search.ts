@@ -4,7 +4,7 @@ import { PUBLIC_WP_URL, wcFetch } from '../../lib/woocommerce';
 
 export const GET: APIRoute = async ({ url }) => {
     const query = (url.searchParams.get('q') || '').trim();
-    const perPage = parseInt(url.searchParams.get('per_page') || '12');
+    const perPage = parseInt(url.searchParams.get('per_page') || '20');
 
     if (!query || query.length < 2) {
         return new Response(JSON.stringify([]), {
@@ -34,13 +34,51 @@ export const GET: APIRoute = async ({ url }) => {
         } catch (_) { /* silent fallback */ }
 
 
-        // 2. Si Store API no devuelve resultados, usamos v3 (autenticada)
-        if (products.length === 0) {
-            const v3Data = await wcFetch(
-                `/products?search=${encoded}&per_page=${perPage}&status=publish`
-            );
+        // 2. Si Store API no devuelve muchos resultados, intentamos v3 y taxonomías
+        if (products.length < perPage) {
+            const [v3Data, categories, tags] = await Promise.all([
+                wcFetch(`/products?search=${encoded}&per_page=${perPage}&status=publish`),
+                wcFetch(`/products/categories?search=${encoded}&per_page=5`),
+                wcFetch(`/products/tags?search=${encoded}&per_page=5`)
+            ]);
+
+            // Agregar productos de v3
             if (Array.isArray(v3Data)) {
-                products = v3Data;
+                const seenIds = new Set(products.map(p => p.id));
+                v3Data.forEach((p: any) => {
+                    if (!seenIds.has(p.id)) {
+                        products.push(p);
+                        seenIds.add(p.id);
+                    }
+                });
+            }
+
+            // Si aún hay espacio, buscar productos por categoría o tag coincidentes
+            if (products.length < perPage) {
+                const extraTasks = [];
+                
+                if (Array.isArray(categories) && categories.length > 0) {
+                    extraTasks.push(wcFetch(`/products?category=${categories[0].id}&per_page=10&status=publish&stock_status=instock`));
+                }
+                
+                if (Array.isArray(tags) && tags.length > 0) {
+                    extraTasks.push(wcFetch(`/products?tag=${tags[0].id}&per_page=10&status=publish&stock_status=instock`));
+                }
+
+                if (extraTasks.length > 0) {
+                    const extraData = await Promise.all(extraTasks);
+                    const seenIds = new Set(products.map(p => p.id));
+                    extraData.forEach((list: any) => {
+                        if (Array.isArray(list)) {
+                            list.forEach((p: any) => {
+                                if (!seenIds.has(p.id)) {
+                                    products.push(p);
+                                    seenIds.add(p.id);
+                                }
+                            });
+                        }
+                    });
+                }
             }
         }
 

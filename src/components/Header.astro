@@ -2,6 +2,7 @@
 import { Image } from "astro:assets";
 import { getMenu, PUBLIC_WP_URL } from "../lib/woocommerce";
 import UserStatus from "./auth/UserStatus";
+import { getOptimizedUrl, getImageSrcSet } from "../utils/image";
 
 // El slug de WordPress para "Menú principal" comúnmente es "menu-principal"
 const menuItems = await getMenu("menu-principal");
@@ -45,7 +46,7 @@ function flattenCategoryUrl(url: string) {
     if (clean.includes("/product-category/")) {
         const segments = clean.split("/").filter(Boolean);
         const lastSegment = segments[segments.length - 1];
-        return `/categoria/${lastSegment}/`;
+        return `/categoria/${lastSegment}`;
     }
 
     // Asegurar que no quede "vacio" o "//"
@@ -53,6 +54,8 @@ function flattenCategoryUrl(url: string) {
     
     // Normalizar a barra inicial si no la tiene
     if (!clean.startsWith("/")) clean = "/" + clean;
+
+    clean = clean.replace(/\/$/, '');
     
     return clean;
 }
@@ -108,12 +111,14 @@ function flattenCategoryUrl(url: string) {
         <!-- Parte Central: Logo -->
         <a href="/" class="logo">
             <img
-                src={`${PUBLIC_WP_URL}/wp-content/uploads/2020/12/logo-w-h-vertical.png`}
+                src={getOptimizedUrl(`${PUBLIC_WP_URL}/wp-content/uploads/2020/12/logo-w-h-vertical.png`, { width: 440 })}
+                srcset={getImageSrcSet(`${PUBLIC_WP_URL}/wp-content/uploads/2020/12/logo-w-h-vertical.png`, [220, 440])}
                 alt="Winston & Harry Logo"
-                width="400"
-                height="400"
+                width="220"
+                height="220"
                 referrerpolicy="no-referrer"
                 loading="eager"
+                decoding="async"
             />
         </a>
 

@@ -3,7 +3,14 @@
  * Using ck/cs credentials for full access and better data processing.
  */
 
-let WC_URL_ENV = (import.meta.env.WC_URL || import.meta.env.WP_URL || "https://tienda.winstonandharrystore.com").trim();
+const getEnv = (key: string) => {
+    return import.meta.env[key] || 
+           import.meta.env[`PUBLIC_${key}`] || 
+           (typeof process !== 'undefined' ? process.env[key] : undefined) || 
+           (typeof process !== 'undefined' ? process.env[`PUBLIC_${key}`] : undefined);
+};
+
+let WC_URL_ENV = (getEnv('WC_URL') || getEnv('WP_URL') || "https://tienda.winstonandharrystore.com").trim();
 
 // Asegurar que use el subdominio tienda. si es el dominio principal para los llamados a la API
 if (WC_URL_ENV.includes("winstonandharrystore.com") && !WC_URL_ENV.includes("tienda.")) {
@@ -65,10 +72,15 @@ function normalizeSlug(text: string): string {
         .replace(/[^\w-]+/g, '');       // Quitar caracteres especiales
 }
 
-export async function wcFetch(path: string, options: RequestInit = {}, retries = 3, delay = 1500) {
+function normalizeQuery(text: string): string {
+    if (!text) return "";
+    return text.trim().toLowerCase();
+}
+
+export async function wcFetch(path: string, options: RequestInit = {}, retries = 3, delay = 500, timeoutMs = 4000) {
     // Leemos las claves en RUNTIME
-    const CK = (import.meta.env.WC_CONSUMER_KEY || import.meta.env.WP_CONSUMER_KEY || "").trim();
-    const CS = (import.meta.env.WC_CONSUMER_SECRET || import.meta.env.WP_CONSUMER_SECRET || "").trim();
+    const CK = (getEnv('WC_CONSUMER_KEY') || getEnv('WP_CONSUMER_KEY') || "").trim();
+    const CS = (getEnv('WC_CONSUMER_SECRET') || getEnv('WP_CONSUMER_SECRET') || "").trim();
 
     if (import.meta.env.SSR) {
         if (!CK.startsWith('ck_')) console.error(`[WC API] ALERTA: La Key no empieza por 'ck_' (actual: ${CK.substring(0, 4)}...)`);
@@ -101,11 +113,14 @@ export async function wcFetch(path: string, options: RequestInit = {}, retries =
     // Limpieza de dobles barras (excepto las de http://)
     url = url.replace(/([^:]\/)\/+/g, "$1");
 
-    // 3. Determinar si requiere Auth (Solo para el namespace 'wc' que no sea 'store')
+    // 3. Determinar si requiere Auth
     const finalCleanPath = url.split('wp-json/')[1] || "";
     const isWcNamespace = finalCleanPath.startsWith('wc/');
+    const isWpNamespace = finalCleanPath.startsWith('wp/');
     const isStore = finalCleanPath.includes('wc/store/');
-    const needsAuth = isWcNamespace && !isStore;
+    
+    // WooCommerce requiere Auth para casi todo excepto Store API
+    const needsWcAuth = isWcNamespace && !isStore;
     
     // 4. Headers base
     const headers: any = {
@@ -113,19 +128,34 @@ export async function wcFetch(path: string, options: RequestInit = {}, retries =
         ...(options.headers || {})
     };
 
-    if (needsAuth && CK && CS) {
-        // 1. Query Params (Siempre van, es lo más confiable en WP)
+    if (needsWcAuth && CK && CS) {
+        // Auth para WooCommerce vía Query Params (más compatible)
         const connector = url.includes('?') ? '&' : '?';
         url += `${connector}consumer_key=${CK}&consumer_secret=${CS}`;
 
-        // 2. Redundancia vía Basic Auth (A veces es obligatorio para POSTs en ciertos hosts)
+        // Redundancia vía Basic Auth
         headers['Authorization'] = `Basic ${safeBtoa(`${CK}:${CS}`)}`;
+    } else if (isWpNamespace) {
+        // Para wp/v2 usamos Application Passwords SOLO si están disponibles
+        const WP_USER = getEnv('WP_APP_USER') || "";
+        const WP_PASS = getEnv('WP_APP_PASS') || "";
+        if (WP_USER && WP_PASS) {
+            headers['Authorization'] = `Basic ${safeBtoa(`${WP_USER}:${WP_PASS}`)}`;
+        }
+        // Si no hay WP_APP_USER, la petición va sin auth (pública), 
+        // que es lo ideal para la mayoría de wp/v2/pages o posts.
     }
 
     for (let i = 0; i < retries; i++) {
         try {
-            const startTime = Date.now();
-            const res = await fetch(url, { ...options, headers });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            let res: Response;
+            try {
+                res = await fetch(url, { ...options, headers, signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
             const endTime = Date.now();
             
             // Log removed for production
@@ -608,6 +638,23 @@ export async function getCategoryBySlug(slug: string) {
     }
 }
 
+export async function getCategoryById(id: number) {
+    const cacheKey = `cat_id_${id}`;
+    const cached = getStaticCached(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const category = await wcFetch(`/products/categories/${id}`);
+        if (!category) return null;
+        
+        setStaticCached(cacheKey, category);
+        return category;
+    } catch (error: any) {
+        console.error(`Error fetching category by id ${id}:`, error.message);
+        return null;
+    }
+}
+
 /**
  * Fetch child categories of a parent category
  */
@@ -883,35 +930,65 @@ export async function searchProducts(query: string, perPage = 20) {
             results = Array.isArray(data) ? data.map(p => mapV3ToStore(p)) : [];
         }
 
-        // 2. Inteligencia extra: Si no hay resultados o buscamos un "término categoría"
-        // Intentamos ver si el término coincide con una categoría de producto
-        if (results.length === 0 || ['ropa', 'zapatos', 'calzado', 'maletas', 'cinturones', 'botas', 'mocasines', 'tenis', 'chaquetas'].includes(term)) {
-            const categories = await wcFetch(`/products/categories?search=${encodeURIComponent(term)}&per_page=10`);
+        // 2. Inteligencia extra: Buscar por Categorías y Tags
+        // Si no hay resultados o si el término es corto/genérico, buscamos coincidencias en taxonomías
+        const isCommonTerm = ['ropa', 'zapatos', 'calzado', 'maletas', 'cinturones', 'botas', 'mocasines', 'tenis', 'chaquetas', 'morral', 'maletin', 'billetera'].includes(term);
+        
+        if (results.length < 5 || isCommonTerm) {
+            const [categories, tags] = await Promise.all([
+                wcFetch(`/products/categories?search=${encodeURIComponent(term)}&per_page=10`),
+                wcFetch(`/products/tags?search=${encodeURIComponent(term)}&per_page=10`)
+            ]);
             
+            let extraProducts: any[] = [];
+
+            // Procesar Categorías
             if (Array.isArray(categories) && categories.length > 0) {
-                // PRIORIDAD DE COINCIDENCIA:
-                // 1. Slug exacto o Nombre exacto
-                // 2. El slug empieza por el término
-                // 3. El slug contiene el término
-                const exactMatch = categories.find(c => c.slug === term || c.name.toLowerCase() === term);
-                const startsWithTerm = categories.find(c => c.slug.startsWith(term));
-                const containsTerm = categories.find(c => c.slug.includes(term) || (typeof term === 'string' && term.includes(c.slug)));
-                
-                const bestCat = exactMatch || startsWithTerm || containsTerm || categories[0];
-                
-                // Si encontramos una categoría razonable, traemos sus productos y los ponemos al principio
+                const bestCat = categories.find(c => c.slug === term || c.name.toLowerCase() === term) || categories[0];
                 if (bestCat) {
                     const catProducts = await getProductsByCategory(bestCat.id, perPage);
-                    
-                    // Combinamos dando prioridad a los de la categoría
-                    const catIds = new Set(catProducts.map(p => p.id));
-                    const otherResults = results.filter(p => !catIds.has(p.id));
-                    results = [...catProducts, ...otherResults].slice(0, perPage);
+                    extraProducts = [...extraProducts, ...catProducts];
                 }
+            }
+
+            // Procesar Tags
+            if (Array.isArray(tags) && tags.length > 0) {
+                const bestTag = tags.find(t => t.slug === term || t.name.toLowerCase() === term) || tags[0];
+                if (bestTag) {
+                    // Obtener productos por tag
+                    const tagProductsData = await wcFetch(`/products?tag=${bestTag.id}&per_page=${perPage}&status=publish&stock_status=instock`);
+                    if (Array.isArray(tagProductsData)) {
+                        const mappedTagProducts = tagProductsData.map(p => mapV3ToStore(p)).filter(p => p !== null);
+                        extraProducts = [...extraProducts, ...mappedTagProducts];
+                    }
+                }
+            }
+
+            if (extraProducts.length > 0) {
+                // Combinar de forma inteligente:
+                // 1. Resultados exactos (si los hay)
+                // 2. Resultados de taxonomías
+                // 3. Otros resultados
+                const seenIds = new Set(results.map(p => p.id));
+                for (const p of extraProducts) {
+                    if (!seenIds.has(p.id)) {
+                        results.push(p);
+                        seenIds.add(p.id);
+                    }
+                }
+                
+                // Si el término coincide exactamente con el nombre de un producto de extraProducts, ponerlo arriba
+                results.sort((a, b) => {
+                    const aName = a.name.toLowerCase();
+                    const bName = b.name.toLowerCase();
+                    if (aName === term) return -1;
+                    if (bName === term) return 1;
+                    return 0;
+                });
             }
         }
 
-        return results;
+        return results.slice(0, perPage);
     } catch (error) {
         console.error("[searchProducts] Error:", error);
         return [];
@@ -1166,3 +1243,4 @@ export async function getHomeSEO() {
     }
     return null;
 }
+

@@ -1,0 +1,630 @@
+---
+import { PUBLIC_WP_URL, wcFetch } from "../lib/woocommerce";
+
+const perPage = 4;
+const postsUrl = `${PUBLIC_WP_URL}/wp-json/wp/v2/posts?per_page=${perPage}&status=publish&_embed`;
+const beholdUrl = "https://feeds.behold.so/RVqh8VIima5lSF9u1b3q?limit=50";
+
+let posts = [];
+let beholdPosts = [];
+
+try {
+  const beholdRes = await fetch(beholdUrl).catch(() => null);
+
+  const [wpData] = await Promise.all([
+    wcFetch(`wp/v2/posts?per_page=${perPage}&status=publish&_embed`),
+  ]);
+
+  if (wpData) posts = wpData;
+
+  if (beholdRes && beholdRes.ok) {
+    const data = await beholdRes.json();
+    beholdPosts = data.posts || [];
+  }
+} catch (e) {
+  console.error("Error fetching blog posts for home:", e);
+}
+
+// Improved matching logic for multiple platforms
+function getShortcode(url: string) {
+  // Instagram
+  const igMatch = url.match(/(?:reel|p)\/([^/?#&]+)/);
+  if (igMatch) return igMatch[1];
+
+  // YouTube Shorts / Videos
+  const ytMatch = url.match(/(?:shorts\/|v=|youtu\.be\/)([^/?#&]+)/);
+  if (ytMatch) return ytMatch[1];
+
+  // TikTok
+  const ttMatch = url.match(/video\/(\d+)/);
+  if (ttMatch) return ttMatch[1];
+
+  return null;
+}
+
+// Function to get embed info and platform
+function getEmbedInfo(url: string) {
+  if (!url) return { src: "", type: null, id: null };
+  const shortcode = getShortcode(url);
+
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    return {
+      src: `https://www.youtube.com/embed/${shortcode}?autoplay=1&rel=0&modestbranding=1&mute=0`,
+      type: "youtube",
+      id: shortcode,
+    };
+  }
+
+  if (url.includes("instagram.com")) {
+    return {
+      src: `https://www.instagram.com/reel/${shortcode}/embed/`,
+      type: "ig",
+      id: shortcode,
+    };
+  }
+
+  if (url.includes("tiktok.com")) {
+    return {
+      src: `https://www.tiktok.com/embed/v2/${shortcode}`,
+      type: "tiktok",
+      id: shortcode,
+    };
+  }
+
+  return { src: "", type: null, id: null };
+}
+---
+
+<section
+  id="blog"
+  class="blog-home"
+  style="min-height: 400px; background: #fff;"
+>
+  <div class="container">
+    <div class="blog-home__header reveal-on-scroll">
+      <h2 class="blog-home__title">Blog</h2>
+      <p class="blog-home__subtitle">
+        Moda, tendencias y el mundo del cuero artesanal
+      </p>
+    </div>
+
+    {
+      posts && posts.length > 0 ? (
+        <div class="blog-home__grid">
+          {posts.map((post: any) => {
+            const reelUrl = post.acf?.reel_url || "";
+            const embed = getEmbedInfo(reelUrl);
+            const shortcode = embed.id;
+
+            // Behold Matching Logic with Shortcode
+            const matchedBehold = beholdPosts.find((p) => {
+              const pShortcode = p.permalink ? getShortcode(p.permalink) : null;
+              return shortcode && pShortcode === shortcode;
+            });
+
+            // Thumbnail Priority: Behold -> WP Featured -> WP Meta -> IG Hack -> Stock
+            let img =
+              matchedBehold?.thumbnailUrl ||
+              matchedBehold?.mediaUrl ||
+              post._embedded?.["wp:featuredmedia"]?.[0]?.source_url ||
+              "";
+
+            if (!img && embed.type === "ig" && embed.id) {
+              img = `https://www.instagram.com/reel/${embed.id}/media/?size=l`;
+            } else if (!img && embed.type === "youtube" && embed.id) {
+              img = `https://img.youtube.com/vi/${embed.id}/maxresdefault.jpg`;
+            }
+
+            // Video Priority: Behold (Native) -> iframe (YouTube/IG)
+            const videoUrl = matchedBehold?.mediaUrl || embed.src;
+            const isNative = !!matchedBehold?.mediaUrl;
+            const isYoutube = embed.type === "youtube";
+
+            const cat = post._embedded?.["wp:term"]?.[0]?.[0]?.name || "";
+            const title = post.title.rendered;
+            const slug = post.slug;
+            const date = new Date(post.date).toLocaleDateString("es-CO", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            });
+
+            const isReel = !!reelUrl;
+
+            return (
+              <article class="blog-card reveal-on-scroll">
+                <div class="blog-card__main">
+                  <div class="blog-card__image-container">
+                    <a href={`/blog/${slug}`} class="blog-card__image-link">
+                      {img ? (
+                        <img
+                          src={img}
+                          alt={title}
+                          loading="lazy"
+                          class="blog-card__image"
+                          onerror="this.style.opacity='0'; this.parentElement.querySelector('.blog-card__image-placeholder').style.display='flex';"
+                        />
+                      ) : null}
+                      <div
+                        class="blog-card__image-placeholder"
+                        style={img ? "display:none" : "display:flex"}
+                      />
+                    </a>
+
+                    {cat && <span class="blog-card__category">{cat}</span>}
+
+                    {isReel && (
+                      <div class="blog-card__reel-overlay">
+                        <span class="blog-card__platform-badge">
+                          {embed.type === "tiktok"
+                            ? "♪ TikTok"
+                            : embed.type === "youtube"
+                              ? "▶ YouTube"
+                              : "▶ Instagram"}
+                        </span>
+                        <button
+                          class="blog-card__play-btn js-open-video-modal"
+                          data-url={videoUrl}
+                          data-native={isNative ? "true" : "false"}
+                          data-type={embed.type}
+                          aria-label="Ver video"
+                        >
+                          <i class="fa-solid fa-play" />
+                          <span class="blog-card__play-text">Reproducir</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div class="blog-card__content">
+                    <time class="blog-card__date">{date}</time>
+                    <a href={`/blog/${slug}`} class="blog-card__title-link">
+                      <h3 class="blog-card__post-title" set:html={title} />
+                    </a>
+                    <a href={`/blog/${slug}`} class="blog-card__read-more">
+                      Leer artículo
+                    </a>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div class="blog-home__empty">
+          <p>No se encontraron publicaciones recientes.</p>
+        </div>
+      )
+    }
+
+    <div class="blog-home__actions reveal-on-scroll">
+      <a href="/blog" class="btn btn-outline">Ver todas las publicaciones</a>
+    </div>
+  </div>
+
+  {/* Fullscreen Video Modal */}
+  <div id="video-modal" class="video-modal" aria-hidden="true">
+    <div class="video-modal__overlay js-close-modal"></div>
+    <div class="video-modal__content">
+      <button class="video-modal__close js-close-modal" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="video-modal__media-container">
+        {/* Managed via JS */}
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function setupBlogInteractions() {
+    const modal = document.getElementById("video-modal");
+    const mediaContainer = modal?.querySelector(
+      ".video-modal__media-container",
+    );
+
+    document.querySelectorAll(".js-open-video-modal").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const url = btn.getAttribute("data-url");
+        const isNative = btn.getAttribute("data-native") === "true";
+
+        if (modal && mediaContainer && url) {
+          if (isNative) {
+            // Native Player (Behold/File)
+            mediaContainer.innerHTML = `
+              <video 
+                src="${url}" 
+                controls 
+                autoplay 
+                playsinline 
+                class="video-modal__video"
+              ></video>
+            `;
+          } else {
+            // Iframe Player
+            const type = btn.getAttribute("data-type");
+            const isIG = type === "ig";
+
+            mediaContainer.innerHTML = `
+              <div class="${isIG ? "video-modal__iframe-mask" : "video-modal__iframe-standard"}">
+                <iframe 
+                  src="${url}" 
+                  width="100%" 
+                  height="100%" 
+                  frameborder="0" 
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  allowfullscreen
+                ></iframe>
+              </div>
+            `;
+          }
+          modal.classList.add("is-active");
+          document.body.style.overflow = "hidden";
+        }
+      });
+    });
+
+    const closeModal = () => {
+      if (modal && mediaContainer) {
+        modal.classList.remove("is-active");
+        mediaContainer.innerHTML = "";
+        document.body.style.overflow = "";
+      }
+    };
+
+    document.querySelectorAll(".js-close-modal").forEach((el) => {
+      el.addEventListener("click", closeModal);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
+    });
+  }
+
+  setupBlogInteractions();
+  document.addEventListener("astro:page-load", setupBlogInteractions);
+</script>
+
+<style>
+  .blog-home {
+    background-color: var(--color-white);
+    padding: 2rem 0; /* STYLE GUIDE: 8rem desktop */
+  }
+
+  .blog-home__header {
+    text-align: center;
+    margin-bottom: 5rem;
+  }
+
+  .blog-home__title {
+    font-family: var(--font-titles);
+    font-size: 1.25rem;
+    color: var(--color-green);
+    margin-bottom: 1rem;
+    letter-spacing: 2px; /* STYLE GUIDE: 2px */
+    font-weight: 700;
+    text-transform: uppercase; /* STYLE GUIDE: UPPERCASE */
+  }
+
+  .blog-home__subtitle {
+    font-family: var(--font-paragraphs);
+    font-size: 0.8rem; /* STYLE GUIDE: 0.8rem base */
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #333;
+    font-weight: 400;
+  }
+
+  .blog-home__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    margin-bottom: 5rem;
+  }
+
+  .blog-card {
+    transition: var(--transition-smooth);
+  }
+
+  .blog-card__link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .blog-card__image-container {
+    position: relative;
+    aspect-ratio: 9/16; /* REQUERIMIENTO: 9:16 */
+    overflow: hidden;
+    background-color: #e0dcd5;
+    margin-bottom: 1.5rem;
+  }
+
+  .blog-card__image-link {
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .blog-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .blog-card:hover .blog-card__image {
+    transform: scale(1.05);
+  }
+
+  .blog-card__category {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background-color: var(--color-beige);
+    color: #fff;
+    padding: 0.4rem 1rem;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    z-index: 10;
+    font-family: var(--font-titles);
+  }
+
+  /* Reel Overlay & Badges */
+  .blog-card__reel-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, transparent 50%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.5rem;
+    z-index: 5;
+    transition: background 0.4s ease;
+  }
+
+  .blog-card:hover .blog-card__reel-overlay {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 60%);
+  }
+
+  .blog-card__platform-badge {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-paragraphs);
+  }
+
+  .blog-card__play-btn {
+    background: rgba(21, 83, 56, 0.9);
+    border: none;
+    color: #fff;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-family: var(--font-titles);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    z-index: 15; /* HIGHER THAN LINK */
+  }
+
+  .blog-card__play-btn i {
+    font-size: 0.5rem;
+  }
+
+  .blog-card__play-btn:hover {
+    background-color: var(--color-beige);
+    transform: scale(1.05);
+  }
+
+  .blog-card__play-text {
+    font-weight: 600;
+  }
+
+  /* Fullscreen Video Modal */
+  .video-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .video-modal.is-active {
+    display: flex;
+  }
+
+  .video-modal__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+  }
+
+  .video-modal__content {
+    position: relative;
+    width: 95%;
+    max-width: 420px;
+    aspect-ratio: 9 / 16;
+    background: #000;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    z-index: 2;
+    animation: modalAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes modalAppear {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .video-modal__close {
+    position: absolute;
+    top: -3rem;
+    right: 0;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 2rem;
+    cursor: pointer;
+    transition: opacity 0.3s;
+  }
+
+  .video-modal__close:hover {
+    opacity: 0.7;
+  }
+
+  .video-modal__media-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+  }
+
+  :global(.video-modal__video) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  :global(.video-modal__iframe-mask) {
+    width: 100%;
+    height: 100%;
+    transform: scale(1.15); /* Zoom para IG */
+    transform-origin: center;
+  }
+
+  :global(.video-modal__iframe-standard) {
+    width: 100%;
+    height: 100% !important;
+  }
+
+  .blog-card__main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .blog-home__empty {
+    text-align: center;
+    padding: 3rem;
+    color: #888;
+    font-family: var(--font-paragraphs);
+  }
+
+  .blog-card__content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    padding-top: 1.5rem;
+  }
+
+  .blog-card__date {
+    font-family: var(--font-paragraphs);
+    font-size: 0.7rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.75rem;
+  }
+
+  .blog-card__post-title {
+    font-family: var(--font-titles);
+    font-size: 1rem;
+    color: var(--color-green);
+    line-height: 1.4;
+    margin-bottom: 1.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    min-height: 2.8em;
+  }
+
+  .blog-card__read-more {
+    font-family: var(--font-titles);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--color-green);
+    border-bottom: 1px solid rgba(21, 83, 56, 0.3);
+    align-self: flex-start;
+    padding-bottom: 2px;
+    transition: var(--transition-smooth);
+  }
+
+  .blog-card:hover .blog-card__read-more {
+    border-bottom-color: var(--color-beige);
+    color: var(--color-beige);
+  }
+
+  .blog-home__actions {
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Button Overrides to match Style Guide exactly */
+  .blog-home .btn-outline {
+    padding: 1rem 2.5rem;
+    font-family: var(--font-titles);
+    font-weight: 600;
+    letter-spacing: 2px;
+    border: 2px solid var(--color-green);
+    transition: var(--transition-smooth);
+  }
+
+  .blog-home .btn-outline:hover {
+    background-color: var(--color-beige);
+    border-color: var(--color-beige);
+    color: #fff;
+    transform: translateY(-3px);
+  }
+
+  @media (max-width: 1024px) {
+    .blog-home__grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3rem 2rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .blog-home {
+      padding: 0rem 0; /* STYLE GUIDE: 4rem mobile */
+    }
+    .blog-home__grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem 1rem;
+    }
+    .blog-card__post-title {
+      font-size: 0.85rem;
+    }
+    .blog-card__image-container {
+      aspect-ratio: 9/16;
+    }
+  }
+</style>

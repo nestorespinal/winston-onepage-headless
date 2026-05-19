@@ -57,8 +57,8 @@ El sitio utiliza una combinación de **Adobe Fonts (Typekit)** y **Google Fonts*
 - **Ancho Máximo del Contenedor:** `1400px`.
 - **Gutters (Padding lateral):** `2rem` (32px) a cada lado del contenedor.
 - **Espaciado entre Secciones (Padding vertical):**
-    - **Desktop:** `8rem` (128px) arriba y abajo.
-    - **Mobile (<768px):** `4rem` (64px) arriba y abajo.
+    - **Desktop:** `2rem` arriba y abajo.
+    - **Mobile (<768px):** `1rem` arriba y abajo.
 
 ---
 
@@ -75,7 +75,7 @@ El sitio utiliza una combinación de **Adobe Fonts (Typekit)** y **Google Fonts*
   --font-body: 'Helvetica', 'Arial', sans-serif;
   
   --container-max-width: 1400px;
-  --section-padding-desktop: 8rem 0;
-  --section-padding-mobile: 4rem 0;
+  --section-padding-desktop:2rem 0;
+  --section-padding-mobile: 1rem 0;
 }
 ```

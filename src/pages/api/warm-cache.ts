@@ -19,8 +19,6 @@ export const GET: APIRoute = async ({ request }) => {
     const origin = new URL(request.url).origin;
     
     // Auth vars
-    const CK = (import.meta.env.WC_CONSUMER_KEY || import.meta.env.WP_CONSUMER_KEY || "").trim();
-    const CS = (import.meta.env.WC_CONSUMER_SECRET || import.meta.env.WP_CONSUMER_SECRET || "").trim();
     const adminToken = (import.meta.env.VERCEL_REVALIDATE_TOKEN || '').trim();
     const cronHeader = request.headers.get('x-vercel-cron') || '';
     
@@ -29,32 +27,34 @@ export const GET: APIRoute = async ({ request }) => {
     const hasTokenAsFlag = adminToken !== '' && searchParams.has(adminToken);
 
     if (!cronHeader && (adminToken === '' || (queryToken !== adminToken && !hasTokenAsFlag))) {
+        console.error('[WarmCache] Unauthorized access attempt');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
     try {
-        console.log('[WarmCache] 📦 Obteniendo slugs de WooCommerce...');
+        const { wcFetch } = await import('../../lib/woocommerce');
+        console.log('[WarmCache] 📦 Obteniendo slugs via wcFetch...');
 
-        // ─── 1. Obtener slugs en paralelo (Páginas 1, 2, 3 y Categorías) ──────
-        // Esto cubre hasta 300 productos de una vez.
-        const [p1, p2, p3, catRes] = await Promise.all([
-            fetch(`${PUBLIC_WP_URL}/wp-json/wc/v3/products?per_page=100&page=1&status=publish&consumer_key=${CK}&consumer_secret=${CS}`),
-            fetch(`${PUBLIC_WP_URL}/wp-json/wc/v3/products?per_page=100&page=2&status=publish&consumer_key=${CK}&consumer_secret=${CS}`),
-            fetch(`${PUBLIC_WP_URL}/wp-json/wc/v3/products?per_page=100&page=3&status=publish&consumer_key=${CK}&consumer_secret=${CS}`),
-            fetch(`${PUBLIC_WP_URL}/wp-json/wc/v3/products/categories?per_page=100&hide_empty=false&consumer_key=${CK}&consumer_secret=${CS}`)
+        // ─── 1. Obtener slugs en paralelo (Soporta hasta 500 items de cada uno) ──────
+        const fetchMultiplePages = async (endpoint: string, pages = 5) => {
+            const results = await Promise.all(
+                Array.from({ length: pages }, (_, i) => i + 1).map(page => 
+                    wcFetch(`${endpoint}${endpoint.includes('?') ? '&' : '?'}per_page=100&page=${page}`)
+                        .then(res => Array.isArray(res) ? res : [])
+                        .catch(() => [])
+                )
+            );
+            return results.flat();
+        };
+
+        const [products, categories] = await Promise.all([
+            fetchMultiplePages('/products?status=publish', 5),
+            fetchMultiplePages('/products/categories?hide_empty=false', 5)
         ]);
 
-        const allSets = await Promise.all([
-            p1.ok ? p1.json() : [],
-            p2.ok ? p2.json() : [],
-            p3.ok ? p3.json() : [],
-            catRes.ok ? catRes.json() : []
-        ]);
+        console.log(`[WarmCache] 🔍 WooCommerce API: ${products.length} productos, ${categories.length} categorías encontradas (después de paginación).`);
 
-        const products = [...allSets[0], ...allSets[1], ...allSets[2]];
-        const categories = allSets[3];
-
-        const urlsToWarm = [
+        const uniqueUrls = [...new Set([
             `${origin}/`,
             `${origin}/contacto`,
             `${origin}/guia-de-tallas`,
@@ -63,30 +63,32 @@ export const GET: APIRoute = async ({ request }) => {
             `${origin}/terminos-condiciones`,
             ...categories.map((c: any) => `${origin}/categoria/${c.slug}`),
             ...products.map((p: any) => `${origin}/productos/${p.slug}`)
-        ].filter(url => !url.includes('undefined') && url.startsWith('http'));
+        ])].filter(url => url && !url.includes('undefined') && url.startsWith('http'));
 
-        console.log(`[WarmCache] Calentando ${urlsToWarm.length} URLs simultáneamente...`);
+        console.log(`[WarmCache] Calentando ${uniqueUrls.length} URLs simultáneamente...`);
 
-        // ─── 2. Calentamiento Masivo (Sin bloques, todo a la vez) ────────────
+        if (uniqueUrls.length === 6) {
+            console.warn('[WarmCache] ATENCIÓN: Solo se detectaron las 6 URLs estáticas. Verifica las credenciales WC_CONSUMER_KEY y WC_CONSUMER_SECRET si esperas productos.');
+        }
+
+        // ─── 2. Calentamiento Masivo ────────────
         const results = await Promise.allSettled(
-            urlsToWarm.map(async (url) => {
+            uniqueUrls.map(async (url) => {
                 const headers: Record<string, string> = {
                     'Cache-Control': 'no-cache',
-                    'User-Agent': 'WH-CacheWarmer/7.0'
+                    'User-Agent': 'WH-CacheWarmer/8.0'
                 };
                 
                 let finalUrl = url;
                 if (adminToken) {
                     headers['x-prerender-revalidate'] = adminToken;
                     headers['x-revalidate-auth'] = adminToken;
-                    headers['x-vercel-protection-bypass'] = adminToken;
                     const connector = finalUrl.includes('?') ? '&' : '?';
                     finalUrl = `${finalUrl}${connector}vercel-protection-bypass-token=${adminToken}`;
                 }
 
-                // Timeout de 25s: WooCommerce es lento, hay que darle tiempo.
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 25000);
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
 
                 try {
                     const r = await fetch(finalUrl, { headers, signal: controller.signal });
@@ -94,7 +96,7 @@ export const GET: APIRoute = async ({ request }) => {
                     return r.status;
                 } catch {
                     clearTimeout(timeoutId);
-                    return 202; // Asumimos aceptado/lanzado en caso de timeout
+                    return 202;
                 }
             })
         );
@@ -105,9 +107,13 @@ export const GET: APIRoute = async ({ request }) => {
         return new Response(JSON.stringify({
             success: true,
             results: {
-                total: urlsToWarm.length,
+                total: uniqueUrls.length,
                 ok: okCount,
-                time: `${elapsed.toFixed(1)}s`
+                time: `${elapsed.toFixed(1)}s`,
+                fetched: {
+                    products: products.length,
+                    categories: categories.length
+                }
             }
         }), { 
             status: 200, 
